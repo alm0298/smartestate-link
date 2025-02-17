@@ -8,6 +8,13 @@ import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
+interface PropertyDetails {
+  bedrooms?: string;
+  bathrooms?: string;
+  square_feet?: string;
+  description?: string;
+}
+
 interface PropertyAnalysis {
   id: string;
   property_url: string;
@@ -16,6 +23,7 @@ interface PropertyAnalysis {
   monthly_rent: number;
   estimated_expenses: number;
   roi: number;
+  details?: PropertyDetails;
   created_at: string;
 }
 
@@ -41,20 +49,18 @@ export const PropertyAnalysis = () => {
   // Mutation for creating new analysis
   const { mutate: analyzeProperty, isPending: isAnalyzing } = useMutation({
     mutationFn: async (propertyUrl: string) => {
-      // Simulate property analysis with mock data
-      // In a real app, this would call an API to scrape and analyze the listing
-      const mockAnalysis = {
-        property_url: propertyUrl,
-        address: "123 Sample St",
-        price: 300000,
-        monthly_rent: 2000,
-        estimated_expenses: 500,
-        roi: 8.0,
-      };
+      // Call the Edge Function to analyze the property
+      const { data: analysisResult, error: functionError } = await supabase.functions
+        .invoke('analyze-property', {
+          body: { url: propertyUrl }
+        });
 
+      if (functionError) throw functionError;
+
+      // Save the analysis result to the database
       const { data, error } = await supabase
         .from("property_analyses")
-        .insert(mockAnalysis)
+        .insert(analysisResult)
         .select()
         .single();
 
@@ -70,10 +76,11 @@ export const PropertyAnalysis = () => {
       setUrl("");
     },
     onError: (error) => {
+      console.error('Analysis error:', error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to analyze property. Please try again.",
+        description: "Failed to analyze property. Please make sure the URL is valid and try again.",
       });
     },
   });
@@ -136,6 +143,22 @@ export const PropertyAnalysis = () => {
                         <p>Price: ${analysis.price.toLocaleString()}</p>
                         <p>Monthly Rent: ${analysis.monthly_rent.toLocaleString()}</p>
                         <p>Monthly Expenses: ${analysis.estimated_expenses.toLocaleString()}</p>
+                        {analysis.details && (
+                          <>
+                            {analysis.details.bedrooms && (
+                              <p>Bedrooms: {analysis.details.bedrooms}</p>
+                            )}
+                            {analysis.details.bathrooms && (
+                              <p>Bathrooms: {analysis.details.bathrooms}</p>
+                            )}
+                            {analysis.details.square_feet && (
+                              <p>Square Feet: {analysis.details.square_feet}</p>
+                            )}
+                            {analysis.details.description && (
+                              <p className="mt-2 text-sm">{analysis.details.description}</p>
+                            )}
+                          </>
+                        )}
                       </div>
                     </div>
                   </Card>
