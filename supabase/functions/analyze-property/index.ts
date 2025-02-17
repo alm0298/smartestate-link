@@ -28,16 +28,7 @@ serve(async (req) => {
     const result = await firecrawl.crawlUrl(url, {
       limit: 1,
       scrapeOptions: {
-        formats: ['html'],
-        // Define XPath or CSS selectors for property data
-        queries: [
-          { name: 'price', selector: 'span[data-testid="price"], .price, .listing-price' },
-          { name: 'address', selector: 'h1[data-testid="address"], .address, .listing-address' },
-          { name: 'description', selector: '.description, .listing-description' },
-          { name: 'bedrooms', selector: '.beds, .bedrooms' },
-          { name: 'bathrooms', selector: '.baths, .bathrooms' },
-          { name: 'squareFeet', selector: '.sqft, .square-feet' }
-        ]
+        formats: ['markdown']
       }
     });
 
@@ -45,27 +36,52 @@ serve(async (req) => {
       throw new Error('Failed to scrape property data');
     }
 
-    console.log('Scraping result:', result);
+    console.log('Raw scraping result:', result);
 
     // Process the scraped data
     const scrapedData = result.data[0];
     let price = 0;
-    
-    // Extract price from the queries results
-    const priceData = scrapedData.queries?.find(q => q.name === 'price')?.value;
-    if (priceData) {
-      const priceMatch = priceData.match(/[\d,]+/);
+    let description = '';
+    let address = 'Address not found';
+    let bedrooms = '';
+    let bathrooms = '';
+    let squareFeet = '';
+
+    // Try to extract information from the scraped content
+    if (scrapedData.content) {
+      // Look for price patterns like $XXX,XXX or $X,XXX,XXX
+      const priceMatch = scrapedData.content.match(/\$[0-9]{1,3}(?:,?[0-9]{3})*(?:\.[0-9]{2})?/);
       if (priceMatch) {
-        price = parseInt(priceMatch[0].replace(/,/g, ''));
+        price = parseInt(priceMatch[0].replace(/[$,]/g, ''));
+      }
+
+      // Look for bedroom counts
+      const bedroomMatch = scrapedData.content.match(/(\d+)\s*(?:bed|bedroom|br)/i);
+      if (bedroomMatch) {
+        bedrooms = bedroomMatch[1];
+      }
+
+      // Look for bathroom counts
+      const bathroomMatch = scrapedData.content.match(/(\d+(?:\.\d+)?)\s*(?:bath|bathroom|ba)/i);
+      if (bathroomMatch) {
+        bathrooms = bathroomMatch[1];
+      }
+
+      // Look for square footage
+      const sqftMatch = scrapedData.content.match(/(\d+(?:,\d+)?)\s*(?:sq\.?\s*ft\.?|sqft|square\s*feet)/i);
+      if (sqftMatch) {
+        squareFeet = sqftMatch[1].replace(',', '');
+      }
+
+      // Extract description (first 500 characters)
+      description = scrapedData.content.slice(0, 500);
+
+      // Try to find address pattern
+      const addressMatch = scrapedData.content.match(/\d+\s+[A-Za-z0-9\s,\.]+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Lane|Ln|Drive|Dr|Circle|Cir|Court|Ct|Place|Pl|Way)[,\s]+[A-Za-z\s]+,\s*[A-Z]{2}\s*\d{5}/i);
+      if (addressMatch) {
+        address = addressMatch[0];
       }
     }
-
-    // Extract other data from queries
-    const address = scrapedData.queries?.find(q => q.name === 'address')?.value || 'Address not found';
-    const description = scrapedData.queries?.find(q => q.name === 'description')?.value;
-    const bedrooms = scrapedData.queries?.find(q => q.name === 'bedrooms')?.value;
-    const bathrooms = scrapedData.queries?.find(q => q.name === 'bathrooms')?.value;
-    const squareFeet = scrapedData.queries?.find(q => q.name === 'squareFeet')?.value;
 
     // Calculate estimated values
     const monthlyRent = Math.round(price * 0.008); // Estimate monthly rent as 0.8% of purchase price
