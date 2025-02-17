@@ -4,12 +4,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/providers/AuthProvider";
 import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export const Properties = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
-  const { data: properties, isLoading, error } = useQuery({
+  const { data: properties, isLoading } = useQuery({
     queryKey: ["properties", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -19,16 +23,19 @@ export const Properties = () => {
         .order('created_at', { ascending: false });
       
       if (error) {
+        console.error("Error fetching properties:", error);
         toast({
           variant: "destructive",
           title: "Error",
           description: "Failed to load properties. Please try again.",
         });
-        throw error;
+        return [];
       }
-      return data;
+      
+      return data || [];
     },
-    enabled: !!user, // Only run query if user is authenticated
+    enabled: !!user,
+    initialData: [], // Provide empty array as initial data
   });
 
   if (!user) {
@@ -49,36 +56,45 @@ export const Properties = () => {
     );
   }
 
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-32">
-        <div className="text-center text-red-500">
-          Error loading properties. Please try again.
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Properties</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Properties</h1>
+        <Button onClick={() => navigate("/property/new")} className="flex items-center gap-2">
+          <Plus className="h-4 w-4" />
+          Add Property
+        </Button>
+      </div>
+      
       {properties && properties.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {properties.map((property) => (
-            <Card key={property.id}>
+            <Card 
+              key={property.id}
+              className="cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => navigate(`/property/${property.id}`)}
+            >
               <CardHeader>
-                <CardTitle className="text-lg">{property.address}</CardTitle>
+                <CardTitle className="text-lg">{property.address || "Untitled Property"}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold">${property.price?.toLocaleString()}</p>
-                <p className="text-sm text-muted-foreground">ROI: {property.roi}%</p>
+                <p className="text-2xl font-bold">
+                  {property.price ? `$${property.price?.toLocaleString()}` : "Price not set"}
+                </p>
+                {property.roi !== null && (
+                  <p className="text-sm text-muted-foreground">ROI: {property.roi}%</p>
+                )}
               </CardContent>
             </Card>
           ))}
         </div>
       ) : (
-        <div className="text-center py-8">
-          <p className="text-muted-foreground">No properties found. Add your first property to get started.</p>
+        <div className="text-center py-8 space-y-4">
+          <p className="text-muted-foreground">You haven't added any properties yet.</p>
+          <Button onClick={() => navigate("/property/new")} variant="outline" className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            Add Your First Property
+          </Button>
         </div>
       )}
     </div>
