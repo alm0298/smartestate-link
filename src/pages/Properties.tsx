@@ -23,21 +23,22 @@ export const Properties = () => {
       
       if (error) {
         console.error("Error fetching properties:", error);
-        throw error; // Let React Query handle the error
+        throw error;
       }
       
       return data || [];
     },
     enabled: !!user,
-    initialData: [], // Provide empty array as initial data
-    retry: 1, // Only retry once on failure
-    onError: (error) => {
-      console.error("Query error:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to load properties. Please try again.",
-      });
+    initialData: () => [], // Convert to function to match expected type
+    retry: 1,
+    meta: { // Use meta for error handling
+      onError: () => {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load properties. Please try again.",
+        });
+      }
     }
   });
 
