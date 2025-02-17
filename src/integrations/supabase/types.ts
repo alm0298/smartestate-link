@@ -59,7 +59,7 @@ export type Database = {
           roi: number | null
           status: string | null
           updated_at: string
-          user_id: string | null
+          user_id: string
         }
         Insert: {
           address?: string | null
@@ -77,7 +77,7 @@ export type Database = {
           roi?: number | null
           status?: string | null
           updated_at?: string
-          user_id?: string | null
+          user_id: string
         }
         Update: {
           address?: string | null
@@ -95,7 +95,7 @@ export type Database = {
           roi?: number | null
           status?: string | null
           updated_at?: string
-          user_id?: string | null
+          user_id?: string
         }
         Relationships: [
           {
