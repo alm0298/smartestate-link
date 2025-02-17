@@ -42,7 +42,7 @@ export const PropertyAnalysis = () => {
   });
 
   // Mutation for creating new analysis
-  const { mutate: analyzeProperty, isLoading: isAnalyzing } = useMutation({
+  const { mutate: analyzeProperty, isPending: isAnalyzing } = useMutation({
     mutationFn: async (propertyUrl: string) => {
       // Simulate property analysis with mock data
       // In a real app, this would call an API to scrape and analyze the listing
