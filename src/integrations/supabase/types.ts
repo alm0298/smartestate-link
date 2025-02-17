@@ -16,6 +16,8 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
+          role: string | null
+          subscription_status: string | null
           updated_at: string
         }
         Insert: {
@@ -24,6 +26,8 @@ export type Database = {
           email: string
           full_name?: string | null
           id: string
+          role?: string | null
+          subscription_status?: string | null
           updated_at?: string
         }
         Update: {
@@ -32,6 +36,8 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
+          role?: string | null
+          subscription_status?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -39,37 +45,55 @@ export type Database = {
       property_analyses: {
         Row: {
           address: string | null
+          agent_notes: string | null
+          ai_analysis: Json | null
           created_at: string
+          details: Json | null
           estimated_expenses: number | null
           id: string
+          location_lat: number | null
+          location_lng: number | null
           monthly_rent: number | null
           price: number | null
           property_url: string
           roi: number | null
+          status: string | null
           updated_at: string
           user_id: string | null
         }
         Insert: {
           address?: string | null
+          agent_notes?: string | null
+          ai_analysis?: Json | null
           created_at?: string
+          details?: Json | null
           estimated_expenses?: number | null
           id?: string
+          location_lat?: number | null
+          location_lng?: number | null
           monthly_rent?: number | null
           price?: number | null
           property_url: string
           roi?: number | null
+          status?: string | null
           updated_at?: string
           user_id?: string | null
         }
         Update: {
           address?: string | null
+          agent_notes?: string | null
+          ai_analysis?: Json | null
           created_at?: string
+          details?: Json | null
           estimated_expenses?: number | null
           id?: string
+          location_lat?: number | null
+          location_lng?: number | null
           monthly_rent?: number | null
           price?: number | null
           property_url?: string
           roi?: number | null
+          status?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -82,6 +106,103 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      property_comments: {
+        Row: {
+          comment: string
+          created_at: string | null
+          id: string
+          property_id: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          comment: string
+          created_at?: string | null
+          id?: string
+          property_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          comment?: string
+          created_at?: string | null
+          id?: string
+          property_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_comments_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "property_analyses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_shares: {
+        Row: {
+          created_at: string | null
+          id: string
+          property_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          property_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          property_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_shares_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "property_analyses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscriptions: {
+        Row: {
+          created_at: string | null
+          current_period_end: string | null
+          id: string
+          status: string | null
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          current_period_end?: string | null
+          id?: string
+          status?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          current_period_end?: string | null
+          id?: string
+          status?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
       }
     }
     Views: {
