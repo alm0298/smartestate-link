@@ -15,6 +15,7 @@ export const Properties = () => {
       const { data, error } = await supabase
         .from("property_analyses")
         .select("*")
+        .eq("user_id", user?.id)
         .order('created_at', { ascending: false });
       
       if (error) {
@@ -29,6 +30,16 @@ export const Properties = () => {
     },
     enabled: !!user, // Only run query if user is authenticated
   });
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-32">
+        <div className="text-center text-muted-foreground">
+          Please log in to view your properties.
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
