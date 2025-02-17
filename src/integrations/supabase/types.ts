@@ -36,6 +36,53 @@ export type Database = {
         }
         Relationships: []
       }
+      property_analyses: {
+        Row: {
+          address: string | null
+          created_at: string
+          estimated_expenses: number | null
+          id: string
+          monthly_rent: number | null
+          price: number | null
+          property_url: string
+          roi: number | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          estimated_expenses?: number | null
+          id?: string
+          monthly_rent?: number | null
+          price?: number | null
+          property_url: string
+          roi?: number | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          estimated_expenses?: number | null
+          id?: string
+          monthly_rent?: number | null
+          price?: number | null
+          property_url?: string
+          roi?: number | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_analyses_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
