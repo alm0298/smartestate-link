@@ -4,7 +4,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, TrendingUp, MapPin, Home, Loader2 } from "lucide-react";
 import { useState } from "react";
-import { useAuth } from "@/providers/AuthProvider";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -22,11 +21,10 @@ interface PropertyAnalysis {
 
 export const PropertyAnalysis = () => {
   const [url, setUrl] = useState("");
-  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch user's analyses
+  // Fetch all analyses without user filter
   const { data: analyses, isLoading: isLoadingAnalyses } = useQuery({
     queryKey: ["analyses"],
     queryFn: async () => {
@@ -38,7 +36,6 @@ export const PropertyAnalysis = () => {
       if (error) throw error;
       return data as PropertyAnalysis[];
     },
-    enabled: !!user,
   });
 
   // Mutation for creating new analysis
@@ -53,7 +50,6 @@ export const PropertyAnalysis = () => {
         monthly_rent: 2000,
         estimated_expenses: 500,
         roi: 8.0,
-        user_id: user?.id,
       };
 
       const { data, error } = await supabase
@@ -84,14 +80,6 @@ export const PropertyAnalysis = () => {
 
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) {
-      toast({
-        variant: "destructive",
-        title: "Authentication Required",
-        description: "Please sign in to analyze properties.",
-      });
-      return;
-    }
     if (!url) {
       toast({
         variant: "destructive",
@@ -135,7 +123,7 @@ export const PropertyAnalysis = () => {
             </div>
           ) : analyses && analyses.length > 0 ? (
             <div className="space-y-4 mt-8">
-              <h3 className="text-xl font-semibold">Your Recent Analyses</h3>
+              <h3 className="text-xl font-semibold">Recent Analyses</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {analyses.map((analysis) => (
                   <Card key={analysis.id} className="p-4 bg-white/80">
