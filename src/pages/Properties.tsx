@@ -13,29 +13,32 @@ export const Properties = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const { data: properties, isLoading } = useQuery({
+  const { data: properties, isLoading, isError } = useQuery({
     queryKey: ["properties", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("property_analyses")
         .select("*")
-        .eq("user_id", user?.id)
         .order('created_at', { ascending: false });
       
       if (error) {
         console.error("Error fetching properties:", error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to load properties. Please try again.",
-        });
-        return [];
+        throw error; // Let React Query handle the error
       }
       
       return data || [];
     },
     enabled: !!user,
     initialData: [], // Provide empty array as initial data
+    retry: 1, // Only retry once on failure
+    onError: (error) => {
+      console.error("Query error:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load properties. Please try again.",
+      });
+    }
   });
 
   if (!user) {
@@ -52,6 +55,23 @@ export const Properties = () => {
     return (
       <div className="flex items-center justify-center h-32">
         <div className="text-center">Loading properties...</div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-32 space-y-4">
+        <div className="text-center text-muted-foreground">
+          Unable to load properties. Please try again later.
+        </div>
+        <Button 
+          variant="outline" 
+          onClick={() => navigate(0)}
+          className="flex items-center gap-2"
+        >
+          Retry
+        </Button>
       </div>
     );
   }
