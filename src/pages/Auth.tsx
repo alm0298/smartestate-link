@@ -3,10 +3,10 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardHeader, CardContent, CardFooter, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Auth = () => {
@@ -21,50 +21,90 @@ export const Auth = () => {
     e.preventDefault();
     setLoading(true);
     
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+          },
         },
-      },
-    });
+      });
 
-    if (error) {
+      if (error) {
+        if (error.message.includes("User already registered")) {
+          toast({
+            variant: "destructive",
+            title: "Account Exists",
+            description: "An account with this email already exists. Please sign in instead.",
+          });
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: error.message,
+          });
+        }
+      } else {
+        toast({
+          title: "Success!",
+          description: "Account created successfully. You can now sign in.",
+        });
+      }
+    } catch (err) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message,
+        description: "An unexpected error occurred. Please try again.",
       });
-    } else {
-      toast({
-        title: "Success!",
-        description: "Please check your email to confirm your account.",
-      });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (error) {
+      if (error) {
+        if (error.message.includes("Invalid login credentials")) {
+          toast({
+            variant: "destructive",
+            title: "Invalid Credentials",
+            description: "Please check your email and password and try again.",
+          });
+        } else if (error.message.includes("Email not confirmed")) {
+          toast({
+            variant: "destructive",
+            title: "Email Not Confirmed",
+            description: "Please check your email for the confirmation link.",
+          });
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: error.message,
+          });
+        }
+      } else {
+        navigate("/");
+      }
+    } catch (err) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message,
+        description: "An unexpected error occurred. Please try again.",
       });
-    } else {
-      navigate("/");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -138,6 +178,7 @@ export const Auth = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    minLength={6}
                   />
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
