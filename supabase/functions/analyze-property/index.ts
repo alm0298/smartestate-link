@@ -29,14 +29,15 @@ serve(async (req) => {
       limit: 1,
       scrapeOptions: {
         formats: ['html'],
-        selectors: {
-          price: 'span[data-testid="price"], .price, .listing-price',
-          address: 'h1[data-testid="address"], .address, .listing-address',
-          description: '.description, .listing-description',
-          bedrooms: '.beds, .bedrooms',
-          bathrooms: '.baths, .bathrooms',
-          squareFeet: '.sqft, .square-feet'
-        }
+        // Define XPath or CSS selectors for property data
+        queries: [
+          { name: 'price', selector: 'span[data-testid="price"], .price, .listing-price' },
+          { name: 'address', selector: 'h1[data-testid="address"], .address, .listing-address' },
+          { name: 'description', selector: '.description, .listing-description' },
+          { name: 'bedrooms', selector: '.beds, .bedrooms' },
+          { name: 'bathrooms', selector: '.baths, .bathrooms' },
+          { name: 'squareFeet', selector: '.sqft, .square-feet' }
+        ]
       }
     });
 
@@ -49,13 +50,22 @@ serve(async (req) => {
     // Process the scraped data
     const scrapedData = result.data[0];
     let price = 0;
-    if (scrapedData.price) {
-      // Extract numbers from price string
-      const priceMatch = scrapedData.price.match(/[\d,]+/);
+    
+    // Extract price from the queries results
+    const priceData = scrapedData.queries?.find(q => q.name === 'price')?.value;
+    if (priceData) {
+      const priceMatch = priceData.match(/[\d,]+/);
       if (priceMatch) {
         price = parseInt(priceMatch[0].replace(/,/g, ''));
       }
     }
+
+    // Extract other data from queries
+    const address = scrapedData.queries?.find(q => q.name === 'address')?.value || 'Address not found';
+    const description = scrapedData.queries?.find(q => q.name === 'description')?.value;
+    const bedrooms = scrapedData.queries?.find(q => q.name === 'bedrooms')?.value;
+    const bathrooms = scrapedData.queries?.find(q => q.name === 'bathrooms')?.value;
+    const squareFeet = scrapedData.queries?.find(q => q.name === 'squareFeet')?.value;
 
     // Calculate estimated values
     const monthlyRent = Math.round(price * 0.008); // Estimate monthly rent as 0.8% of purchase price
@@ -65,16 +75,16 @@ serve(async (req) => {
 
     const analysisResult = {
       property_url: url,
-      address: scrapedData.address || 'Address not found',
+      address,
       price,
       monthly_rent: monthlyRent,
       estimated_expenses: estimatedExpenses,
       roi: parseFloat(roi),
       details: {
-        bedrooms: scrapedData.bedrooms,
-        bathrooms: scrapedData.bathrooms,
-        square_feet: scrapedData.squareFeet,
-        description: scrapedData.description
+        bedrooms,
+        bathrooms,
+        square_feet: squareFeet,
+        description
       }
     };
 
