@@ -1,3 +1,4 @@
+
 export type Json =
   | string
   | number
@@ -7,6 +8,31 @@ export type Json =
   | Json[]
 
 export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          operationName?: string
+          query?: string
+          variables?: Json
+          extensions?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       profiles: {
@@ -51,6 +77,7 @@ export type Database = {
           details: Json | null
           estimated_expenses: number | null
           id: string
+          images: string[] | null
           location_lat: number | null
           location_lng: number | null
           monthly_rent: number | null
@@ -69,6 +96,7 @@ export type Database = {
           details?: Json | null
           estimated_expenses?: number | null
           id?: string
+          images?: string[] | null
           location_lat?: number | null
           location_lng?: number | null
           monthly_rent?: number | null
@@ -87,6 +115,7 @@ export type Database = {
           details?: Json | null
           estimated_expenses?: number | null
           id?: string
+          images?: string[] | null
           location_lat?: number | null
           location_lng?: number | null
           monthly_rent?: number | null
@@ -206,10 +235,16 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      property_analyses_view: {
+        Row: {}
+        Relationships: []
+      }
     }
     Functions: {
-      [_ in never]: never
+      get_jwt_sub: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

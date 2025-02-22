@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import FirecrawlApp from "npm:@mendable/firecrawl-js";
@@ -28,7 +27,13 @@ serve(async (req) => {
     const result = await firecrawl.crawlUrl(url, {
       limit: 1,
       scrapeOptions: {
-        formats: ['markdown']
+        formats: ['markdown'],
+        includeImages: true,
+        additionalSelectors: {
+          images: 'img.property-image',
+          amenities: '.amenities-list',
+          location: '.property-location'
+        }
       }
     });
 

@@ -1,48 +1,100 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/providers/AuthProvider";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Image as ImageIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { debug, info, error as loggerError } from '@/lib/logger';
+import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { useEffect } from "react";
+
+interface Property {
+  id: string;
+  address: string;
+  price: number;
+  roi: number;
+  user_id: string;
+  images?: string[];
+  details?: {
+    square_meters?: number;
+  };
+}
 
 export const Properties = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const { data: properties, isLoading, isError } = useQuery({
+  debug('[Properties] Component mounting with user:', {
+    userId: user?.id,
+    email: user?.email,
+    isAuthenticated: !!user
+  });
+
+  // Check if user session is valid
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error || !session) {
+        debug('[Properties] Invalid session, redirecting to login');
+        navigate('/auth');
+        return;
+      }
+      debug('[Properties] Valid session found:', {
+        userId: session.user.id,
+        expiresAt: session.expires_at
+      });
+    };
+    
+    checkSession();
+  }, [navigate]);
+
+  const { data: properties, isLoading, isError } = useQuery<Property[]>({
     queryKey: ["properties", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("property_analyses")
-        .select("*")
-        .order('created_at', { ascending: false });
+      debug('[Properties] Fetching properties for user:', {
+        userId: user?.id,
+        email: user?.email,
+        isAuthenticated: !!user
+      });
       
-      if (error) {
-        console.error("Error fetching properties:", error);
+      if (!user) {
+        debug('[Properties] No user found - not authenticated');
+        throw new Error('Not authenticated');
+      }
+
+      try {
+        debug('[Properties] Making Supabase query for user_id:', user.id);
+        const { data, error } = await supabase
+          .from("property_analyses")
+          .select("id, address, price, roi, images, details")
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+        
+        if (error) {
+          loggerError('[Properties] Supabase error:', error);
+          throw error;
+        }
+        
+        info('[Properties] Properties fetched successfully:', {
+          count: data?.length || 0,
+          firstProperty: data?.[0]?.id
+        });
+        return data as unknown as Property[];
+      } catch (error: any) {
+        loggerError('[Properties] Error fetching properties:', error.message);
+        loggerError('[Properties] Error details:', error);
         throw error;
       }
-      
-      return data || [];
     },
     enabled: !!user,
-    initialData: () => [], // Convert to function to match expected type
     retry: 1,
-    meta: { // Use meta for error handling
-      onError: () => {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to load properties. Please try again.",
-        });
-      }
-    }
   });
 
   if (!user) {
+    info('[Properties] No user logged in, showing login prompt');
     return (
       <div className="flex items-center justify-center h-32">
         <div className="text-center text-muted-foreground">
@@ -53,6 +105,7 @@ export const Properties = () => {
   }
 
   if (isLoading) {
+    debug('[Properties] Properties are loading...');
     return (
       <div className="flex items-center justify-center h-32">
         <div className="text-center">Loading properties...</div>
@@ -61,6 +114,7 @@ export const Properties = () => {
   }
 
   if (isError) {
+    debug('[Properties] Error loading properties');
     return (
       <div className="flex flex-col items-center justify-center h-32 space-y-4">
         <div className="text-center text-muted-foreground">
@@ -77,11 +131,13 @@ export const Properties = () => {
     );
   }
 
+  info('[Properties] Rendering properties list:', properties?.length || 0);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Properties</h1>
-        <Button onClick={() => navigate("/property/new")} className="flex items-center gap-2">
+        <Button onClick={() => navigate("/properties/new")} className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
           Add Property
         </Button>
@@ -92,19 +148,37 @@ export const Properties = () => {
           {properties.map((property) => (
             <Card 
               key={property.id}
-              className="cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => navigate(`/property/${property.id}`)}
+              className="cursor-pointer hover:shadow-lg transition-shadow overflow-hidden"
+              onClick={() => navigate(`/properties/${property.id}`)}
             >
+              <AspectRatio ratio={16 / 9}>
+                {property.images?.[0] ? (
+                  <img
+                    src={property.images[0]}
+                    alt={property.address}
+                    className="object-cover w-full h-full"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-muted flex items-center justify-center">
+                    <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                )}
+              </AspectRatio>
               <CardHeader>
                 <CardTitle className="text-lg">{property.address || "Untitled Property"}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-2xl font-bold">
-                  {property.price ? `$${property.price?.toLocaleString()}` : "Price not set"}
+                  {property.price ? `€${property.price.toLocaleString()}` : "Price not set"}
                 </p>
-                {property.roi !== null && (
-                  <p className="text-sm text-muted-foreground">ROI: {property.roi}%</p>
-                )}
+                <div className="flex justify-between items-center mt-2">
+                  <p className="text-sm text-muted-foreground">
+                    {property.details?.square_meters ? `${property.details.square_meters} m²` : "Area not set"}
+                  </p>
+                  {property.roi !== null && (
+                    <p className="text-sm text-muted-foreground">ROI: {property.roi}%</p>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -112,7 +186,7 @@ export const Properties = () => {
       ) : (
         <div className="text-center py-8 space-y-4">
           <p className="text-muted-foreground">You haven't added any properties yet.</p>
-          <Button onClick={() => navigate("/property/new")} variant="outline" className="flex items-center gap-2">
+          <Button onClick={() => navigate("/properties/new")} variant="outline" className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
             Add Your First Property
           </Button>
