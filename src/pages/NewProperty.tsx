@@ -239,7 +239,21 @@ export const NewProperty = () => {
   }, [activeTab]);
 
   const removeImage = (index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+    const totalImages = [...pastedImages, ...selectedFiles];
+    const imageToRemove = totalImages[index];
+    
+    // Check if the image is in pastedImages
+    const pastedIndex = pastedImages.indexOf(imageToRemove);
+    if (pastedIndex !== -1) {
+      setPastedImages(prev => prev.filter((_, i) => i !== pastedIndex));
+      return;
+    }
+    
+    // If not in pastedImages, it must be in selectedFiles
+    const selectedIndex = selectedFiles.indexOf(imageToRemove);
+    if (selectedIndex !== -1) {
+      setSelectedFiles(prev => prev.filter((_, i) => i !== selectedIndex));
+    }
   };
 
   useEffect(() => {
