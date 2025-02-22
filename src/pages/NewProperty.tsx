@@ -32,7 +32,7 @@ interface PropertyAnalysis {
 interface PropertyDetails {
   bedrooms?: string;
   bathrooms?: string;
-  square_feet?: string;
+  square_meters?: string;
   description?: string;
 }
 
@@ -66,7 +66,7 @@ export const NewProperty = () => {
     price: "",
     bedrooms: "",
     bathrooms: "",
-    squareFeet: "",
+    squareMeters: "",
     description: "",
     monthlyRent: "",
     estimatedExpenses: ""
@@ -164,8 +164,8 @@ export const NewProperty = () => {
       debug('[Paste Analysis] Analysis result:', analysisResult);
       if (analysisError) throw analysisError;
 
-      // For area, use square_feet if exists; if not, check for square_meters and convert to square feet.
-      const squareFeet = analysisResult.details?.square_feet || (analysisResult.details?.square_meters ? (parseFloat(analysisResult.details.square_meters) * 10.7639).toFixed(2) : "");
+      // Use square_meters directly from the analysis result
+      const squareMeters = analysisResult.details?.square_meters || "";
 
       // Populate manual input fields with parsed analysis result
       setManualInput({
@@ -175,7 +175,7 @@ export const NewProperty = () => {
         estimatedExpenses: analysisResult.estimated_expenses ? analysisResult.estimated_expenses.toString() : "",
         bedrooms: analysisResult.details?.bedrooms || "",
         bathrooms: analysisResult.details?.bathrooms || "",
-        squareFeet: squareFeet,
+        squareMeters: squareMeters,
         description: analysisResult.details?.description || ""
       });
       toast({ title: "Property Details Parsed", description: "Review the property details under Manual Input." });
@@ -227,7 +227,7 @@ export const NewProperty = () => {
         details: {
           bedrooms: manualInput.bedrooms,
           bathrooms: manualInput.bathrooms,
-          square_feet: manualInput.squareFeet,
+          square_meters: manualInput.squareMeters,
           description: manualInput.description
         },
         user_id: user?.id,
@@ -324,7 +324,7 @@ export const NewProperty = () => {
               <CardTitle>Manual Property Details</CardTitle>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleManualSubmit} className="space-y-4">
+              <form onSubmit={handleManualSubmit} className="space-y-4" key="property-form">
                 <div className="space-y-2">
                   <Label htmlFor="address">Property Address</Label>
                   <Input
@@ -337,7 +337,7 @@ export const NewProperty = () => {
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="price">Price ($)</Label>
+                    <Label htmlFor="price">Price (€)</Label>
                     <Input
                       id="price"
                       type="number"
@@ -348,7 +348,7 @@ export const NewProperty = () => {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="monthlyRent">Monthly Rent ($)</Label>
+                    <Label htmlFor="monthlyRent">Monthly Rent (€)</Label>
                     <Input
                       id="monthlyRent"
                       type="number"
@@ -364,6 +364,7 @@ export const NewProperty = () => {
                     <Label htmlFor="bedrooms">Bedrooms</Label>
                     <Input
                       id="bedrooms"
+                      type="number"
                       value={manualInput.bedrooms}
                       onChange={(e) => handleManualInputChange('bedrooms', e.target.value)}
                     />
@@ -373,23 +374,25 @@ export const NewProperty = () => {
                     <Label htmlFor="bathrooms">Bathrooms</Label>
                     <Input
                       id="bathrooms"
+                      type="number"
                       value={manualInput.bathrooms}
                       onChange={(e) => handleManualInputChange('bathrooms', e.target.value)}
                     />
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="squareFeet">Square Feet</Label>
+                    <Label htmlFor="squareMeters">Area (m²)</Label>
                     <Input
-                      id="squareFeet"
-                      value={manualInput.squareFeet}
-                      onChange={(e) => handleManualInputChange('squareFeet', e.target.value)}
+                      id="squareMeters"
+                      type="number"
+                      value={manualInput.squareMeters}
+                      onChange={(e) => handleManualInputChange('squareMeters', e.target.value)}
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="estimatedExpenses">Monthly Expenses ($)</Label>
+                  <Label htmlFor="estimatedExpenses">Monthly Expenses (€)</Label>
                   <Input
                     id="estimatedExpenses"
                     type="number"

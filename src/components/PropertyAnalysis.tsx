@@ -1,4 +1,3 @@
-
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -11,7 +10,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 interface PropertyDetails {
   bedrooms?: string;
   bathrooms?: string;
-  square_feet?: string;
+  square_meters?: string;
   description?: string;
 }
 
@@ -140,9 +139,9 @@ export const PropertyAnalysis = () => {
                         <span className="text-primary font-bold">{analysis.roi}% ROI</span>
                       </div>
                       <div className="text-sm text-gray-600 space-y-1">
-                        <p>Price: ${analysis.price.toLocaleString()}</p>
-                        <p>Monthly Rent: ${analysis.monthly_rent.toLocaleString()}</p>
-                        <p>Monthly Expenses: ${analysis.estimated_expenses.toLocaleString()}</p>
+                        <p>Price: €{analysis.price.toLocaleString()}</p>
+                        <p>Monthly Rent: €{analysis.monthly_rent.toLocaleString()}</p>
+                        <p>Monthly Expenses: €{analysis.estimated_expenses.toLocaleString()}</p>
                         {analysis.details && (
                           <>
                             {analysis.details.bedrooms && (
@@ -151,8 +150,8 @@ export const PropertyAnalysis = () => {
                             {analysis.details.bathrooms && (
                               <p>Bathrooms: {analysis.details.bathrooms}</p>
                             )}
-                            {analysis.details.square_feet && (
-                              <p>Square Feet: {analysis.details.square_feet}</p>
+                            {analysis.details.square_meters && (
+                              <p>Area: {analysis.details.square_meters} m²</p>
                             )}
                             {analysis.details.description && (
                               <p className="mt-2 text-sm">{analysis.details.description}</p>
