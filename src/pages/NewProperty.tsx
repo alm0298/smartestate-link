@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/providers/AuthProvider";
 import { useToast } from "@/hooks/use-toast";
@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { debug } from "@/lib/logger";
+import { X } from "lucide-react";
 
 interface PropertyAnalysis {
   id: string;
@@ -58,6 +59,7 @@ export const NewProperty = () => {
   const [pastedContent, setPastedContent] = useState("");
   const [pastedImages, setPastedImages] = useState<File[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisStep, setAnalysisStep] = useState<string>("");
   const [activeTab, setActiveTab] = useState("manual");
   
   // Manual input state
@@ -72,8 +74,13 @@ export const NewProperty = () => {
     estimatedExpenses: ""
   });
 
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const handlePasteAnalysis = async (e: ClipboardEvent) => {
     e.preventDefault(); // Prevent default paste behavior
+    setIsAnalyzing(true);
+    setAnalysisStep("Extracting content...");
     debug('[Paste Analysis] Paste event triggered.');
     
     const clipboardData = e.clipboardData;
@@ -100,6 +107,7 @@ export const NewProperty = () => {
     debug('[Paste Analysis] Final text content used for analysis:', finalContent.substring(0, 200));
 
     // Extract images from clipboardData.files if available
+    setAnalysisStep("Processing images...");
     let images: File[] = [];
     if (clipboardData && clipboardData.files && clipboardData.files.length > 0) {
       images = Array.from(clipboardData.files);
@@ -158,35 +166,49 @@ export const NewProperty = () => {
 
     // Process analysis: parse and populate the form fields
     if (finalContent.length > 0) {
-      const { data: analysisResult, error: analysisError } = await supabase.functions.invoke('analyze-content', {
-        body: { content: finalContent }
-      });
-      debug('[Paste Analysis] Analysis result:', analysisResult);
-      if (analysisError) throw analysisError;
+      setAnalysisStep("Analyzing property details...");
+      try {
+        const { data: analysisResult, error: analysisError } = await supabase.functions.invoke('analyze-content', {
+          body: { content: finalContent }
+        });
+        debug('[Paste Analysis] Analysis result:', analysisResult);
+        if (analysisError) throw analysisError;
 
-      // Use square_meters directly from the analysis result
-      const squareMeters = analysisResult.details?.square_meters || "";
+        // Use square_meters directly from the analysis result
+        const squareMeters = analysisResult.details?.square_meters || "";
 
-      // Populate manual input fields with parsed analysis result
-      setManualInput({
-        address: analysisResult.address || "",
-        price: analysisResult.price ? analysisResult.price.toString() : "",
-        monthlyRent: analysisResult.monthly_rent ? analysisResult.monthly_rent.toString() : "",
-        estimatedExpenses: analysisResult.estimated_expenses ? analysisResult.estimated_expenses.toString() : "",
-        bedrooms: analysisResult.details?.bedrooms || "",
-        bathrooms: analysisResult.details?.bathrooms || "",
-        squareMeters: squareMeters,
-        description: analysisResult.details?.description || ""
-      });
-      toast({ title: "Property Details Parsed", description: "Review the property details under Manual Input." });
-      
-      // Switch to the Manual Input tab so the user can see the results
-      setActiveTab("manual");
-      setIsAnalyzing(false);
+        setAnalysisStep("Populating form fields...");
+        // Populate manual input fields with parsed analysis result
+        setManualInput({
+          address: analysisResult.address || "",
+          price: analysisResult.price ? analysisResult.price.toString() : "",
+          monthlyRent: analysisResult.monthly_rent ? analysisResult.monthly_rent.toString() : "",
+          estimatedExpenses: analysisResult.estimated_expenses ? analysisResult.estimated_expenses.toString() : "",
+          bedrooms: analysisResult.details?.bedrooms || "",
+          bathrooms: analysisResult.details?.bathrooms || "",
+          squareMeters: squareMeters,
+          description: analysisResult.details?.description || ""
+        });
+        toast({ title: "Property Details Parsed", description: "Review the property details under Manual Input." });
+        
+        // Switch to the Manual Input tab so the user can see the results
+        setActiveTab("manual");
+      } catch (error) {
+        console.error('Analysis error:', error);
+        toast({
+          variant: "destructive",
+          title: "Analysis Failed",
+          description: "Failed to analyze the content. Please try again or enter details manually."
+        });
+      } finally {
+        setIsAnalyzing(false);
+        setAnalysisStep("");
+      }
       return;
     } else if (images.length > 0) {
       toast({ variant: "destructive", title: "No text found", description: "Only images were found. Please add property details manually." });
       setIsAnalyzing(false);
+      setAnalysisStep("");
       return;
     }
 
@@ -197,15 +219,37 @@ export const NewProperty = () => {
         description: "Please copy both text and images from your listing."
       });
       setIsAnalyzing(false);
+      setAnalysisStep("");
       return;
     }
   };
 
+  const handleImagePaste = useCallback((e: ClipboardEvent) => {
+    if (activeTab === 'manual' && e.clipboardData?.files.length > 0) {
+      e.preventDefault();
+      const newFiles = Array.from(e.clipboardData.files).filter(file => 
+        file.type.startsWith('image/')
+      );
+      setSelectedFiles(prev => [...prev, ...newFiles]);
+      toast({
+        title: "Images Added",
+        description: `${newFiles.length} image(s) added to the property.`
+      });
+    }
+  }, [activeTab]);
+
+  const removeImage = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   useEffect(() => {
-    // Add paste event listener
     window.addEventListener('paste', handlePasteAnalysis);
-    return () => window.removeEventListener('paste', handlePasteAnalysis);
-  }, []);
+    window.addEventListener('paste', handleImagePaste);
+    return () => {
+      window.removeEventListener('paste', handlePasteAnalysis);
+      window.removeEventListener('paste', handleImagePaste);
+    };
+  }, [handlePasteAnalysis, handleImagePaste]);
 
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -244,10 +288,13 @@ export const NewProperty = () => {
       if (saveError) throw saveError;
       const propertyId = insertedData.id;
 
-      // If pasted images exist, upload them and update the property record
-      if (pastedImages.length > 0 && propertyId) {
+      // Combine both pasted and selected images for upload
+      const allImages = [...pastedImages, ...selectedFiles];
+
+      // If there are any images, upload them and update the property record
+      if (allImages.length > 0 && propertyId) {
         const uploadedUrls: string[] = [];
-        for (const file of pastedImages) {
+        for (const file of allImages) {
           const fileName = `${propertyId}/${Date.now()}-${file.name}`;
           debug('[Manual Submit] Uploading file:', fileName);
           const { error: uploadError } = await supabase.storage
@@ -304,6 +351,15 @@ export const NewProperty = () => {
       ...prev,
       [field]: value
     }));
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files) {
+      const newFiles = Array.from(event.target.files);
+      setSelectedFiles(prev => [...prev, ...newFiles]);
+      // Reset the input value so the same file can be selected again
+      event.target.value = '';
+    }
   };
 
   return (
@@ -411,6 +467,46 @@ export const NewProperty = () => {
                   />
                 </div>
 
+                <div className="space-y-2">
+                  <Label>Images</Label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {[...pastedImages, ...selectedFiles].map((file, index) => (
+                      <div key={index} className="relative group">
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt={`Property image ${index + 1}`}
+                          className="w-full h-32 object-cover rounded-lg"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeImage(index)}
+                          className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex items-center justify-center h-32 border-2 border-dashed rounded-lg hover:border-primary transition-colors"
+                    >
+                      <span className="text-sm text-muted-foreground">Upload Images</span>
+                    </button>
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  <p className="text-sm text-muted-foreground mt-2">
+                    You can also paste images directly (Ctrl/Cmd + V)
+                  </p>
+                </div>
+
                 <div className="flex gap-4">
                   <Button
                     type="submit"
@@ -440,9 +536,14 @@ export const NewProperty = () => {
               <div className="space-y-4">
                 <div className="text-center p-8 border-2 border-dashed rounded-lg">
                   {isAnalyzing ? (
-                    <div className="flex flex-col items-center gap-2">
+                    <div className="flex flex-col items-center gap-4">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                      <p>Analyzing property details...</p>
+                      <div className="space-y-2">
+                        <p className="font-medium">Analyzing property details...</p>
+                        {analysisStep && (
+                          <p className="text-sm text-muted-foreground">{analysisStep}</p>
+                        )}
+                      </div>
                     </div>
                   ) : (
                     <p className="text-muted-foreground">
