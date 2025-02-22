@@ -20,14 +20,19 @@ import {
 } from "@/components/ui/alert-dialog";
 import { PropertyMap } from "@/components/PropertyMap";
 import { PropertyImages } from "@/components/PropertyImages";
+import { clsx } from "clsx";
 
 type Json = string | number | boolean | null | { [key: string]: Json } | Json[];
 
 interface PropertyDetails {
   bedrooms?: string;
   bathrooms?: string;
-  square_meters?: string;
+  square_meters?: number;
   description?: string;
+  price_per_meter?: number;
+  area_average?: number;
+  difference_percent?: number;
+  area_name?: string;
 }
 
 interface PropertyAnalysis {
@@ -133,9 +138,10 @@ export const PropertyDetails = () => {
     }
   });
 
-  const getDetailsValue = (details: PropertyDetails | null, key: keyof PropertyDetails): string => {
+  const getDetailsValue = (details: PropertyDetails | null, key: keyof PropertyDetails): string | number => {
     if (!details) return '';
-    return details[key] || '';
+    const value = details[key];
+    return value === null || value === undefined ? '' : value;
   };
 
   const handleInputChange = (field: string, value: any) => {
@@ -280,7 +286,24 @@ export const PropertyDetails = () => {
                     className="text-2xl font-bold"
                   />
                 ) : (
-                  <p className="text-3xl font-bold">€{property.price?.toLocaleString()}</p>
+                  <>
+                    <p className="text-3xl font-bold">€{property.price?.toLocaleString()}</p>
+                    {property.price && property.details?.square_meters && (
+                      <div className="text-sm mt-1">
+                        <span className="text-muted-foreground">
+                          €{Math.round(property.price / property.details.square_meters).toLocaleString()}/m²
+                        </span>
+                        {property.details?.area_average && (
+                          <span className={clsx(
+                            "ml-2",
+                            property.details.difference_percent > 0 ? "text-red-500" : "text-green-500"
+                          )}>
+                            ({property.details.difference_percent > 0 ? '+' : ''}{property.details.difference_percent}% vs {property.details.area_name || 'area'})
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
               <div>
@@ -355,7 +378,7 @@ export const PropertyDetails = () => {
                   <Input
                     type="number"
                     value={getDetailsValue(editedProperty?.details, 'square_meters')}
-                    onChange={(e) => handleInputChange('details.square_meters', e.target.value)}
+                    onChange={(e) => handleInputChange('details.square_meters', Number(e.target.value))}
                     className="text-2xl font-bold"
                   />
                 ) : (

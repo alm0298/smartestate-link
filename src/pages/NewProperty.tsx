@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { debug } from "@/lib/logger";
 import { X } from "lucide-react";
+import { clsx } from "clsx";
 
 interface PropertyAnalysis {
   id: string;
@@ -33,8 +34,12 @@ interface PropertyAnalysis {
 interface PropertyDetails {
   bedrooms?: string;
   bathrooms?: string;
-  square_meters?: string;
+  square_meters?: number;
   description?: string;
+  price_per_meter?: number;
+  area_average?: number;
+  difference_percent?: number;
+  area_name?: string;
 }
 
 function dataURLToBlob(dataurl: string): Blob {
@@ -61,6 +66,7 @@ export const NewProperty = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStep, setAnalysisStep] = useState<string>("");
   const [activeTab, setActiveTab] = useState("manual");
+  const [analysisResult, setAnalysisResult] = useState<PropertyAnalysis | null>(null);
   
   // Manual input state
   const [manualInput, setManualInput] = useState({
@@ -168,26 +174,28 @@ export const NewProperty = () => {
     if (finalContent.length > 0) {
       setAnalysisStep("Analyzing property details...");
       try {
-        const { data: analysisResult, error: analysisError } = await supabase.functions.invoke('analyze-content', {
+        const { data: result, error: analysisError } = await supabase.functions.invoke('analyze-content', {
           body: { content: finalContent }
         });
-        debug('[Paste Analysis] Analysis result:', analysisResult);
+        debug('[Paste Analysis] Analysis result:', result);
         if (analysisError) throw analysisError;
 
+        setAnalysisResult(result);
+
         // Use square_meters directly from the analysis result
-        const squareMeters = analysisResult.details?.square_meters || "";
+        const squareMeters = result.details?.square_meters || "";
 
         setAnalysisStep("Populating form fields...");
         // Populate manual input fields with parsed analysis result
         setManualInput({
-          address: analysisResult.address || "",
-          price: analysisResult.price ? analysisResult.price.toString() : "",
-          monthlyRent: analysisResult.monthly_rent ? analysisResult.monthly_rent.toString() : "",
-          estimatedExpenses: analysisResult.estimated_expenses ? analysisResult.estimated_expenses.toString() : "",
-          bedrooms: analysisResult.details?.bedrooms || "",
-          bathrooms: analysisResult.details?.bathrooms || "",
+          address: result.address || "",
+          price: result.price ? result.price.toString() : "",
+          monthlyRent: result.monthly_rent ? result.monthly_rent.toString() : "",
+          estimatedExpenses: result.estimated_expenses ? result.estimated_expenses.toString() : "",
+          bedrooms: result.details?.bedrooms || "",
+          bathrooms: result.details?.bathrooms || "",
           squareMeters: squareMeters,
-          description: analysisResult.details?.description || ""
+          description: result.details?.description || ""
         });
         toast({ title: "Property Details Parsed", description: "Review the property details under Manual Input." });
         
@@ -285,7 +293,7 @@ export const NewProperty = () => {
         details: {
           bedrooms: manualInput.bedrooms,
           bathrooms: manualInput.bathrooms,
-          square_meters: manualInput.squareMeters,
+          square_meters: Number(manualInput.squareMeters) || null,
           description: manualInput.description
         },
         user_id: user?.id,
@@ -415,6 +423,21 @@ export const NewProperty = () => {
                       onChange={(e) => handleManualInputChange('price', e.target.value)}
                       required
                     />
+                    {manualInput.price && manualInput.squareMeters && (
+                      <div className="mt-1 text-sm">
+                        <span className="text-muted-foreground">
+                          €{Math.round(parseFloat(manualInput.price) / Number(manualInput.squareMeters)).toLocaleString()}/m²
+                        </span>
+                        {analysisResult?.details?.area_average && (
+                          <span className={clsx(
+                            "ml-2",
+                            analysisResult.details.difference_percent > 0 ? "text-red-500" : "text-green-500"
+                          )}>
+                            ({analysisResult.details.difference_percent > 0 ? '+' : ''}{analysisResult.details.difference_percent}% vs {analysisResult.details.area_name || 'area'})
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                   
                   <div className="space-y-2">
