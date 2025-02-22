@@ -36,13 +36,29 @@ interface PropertyDetails {
   description?: string;
 }
 
+function dataURLToBlob(dataurl: string): Blob {
+  const arr = dataurl.split(',');
+  const mimeMatch = arr[0].match(/:(.*?);/);
+  if (!mimeMatch) throw new Error('Invalid data URL format');
+  const mime = mimeMatch[1];
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new Blob([u8arr], { type: mime });
+}
+
 export const NewProperty = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [pastedContent, setPastedContent] = useState("");
+  const [pastedImages, setPastedImages] = useState<File[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [activeTab, setActiveTab] = useState("manual");
   
   // Manual input state
   const [manualInput, setManualInput] = useState({
@@ -58,121 +74,130 @@ export const NewProperty = () => {
 
   const handlePasteAnalysis = async (e: ClipboardEvent) => {
     e.preventDefault(); // Prevent default paste behavior
+    debug('[Paste Analysis] Paste event triggered.');
     
-    const items = Array.from(e.clipboardData?.items || []);
-    debug('[NewProperty] Clipboard items:', items.map(item => ({ type: item.type, kind: item.kind })));
+    const clipboardData = e.clipboardData;
+    let content = "";
+    if (clipboardData) {
+      content = clipboardData.getData('text/plain').trim();
+    }
+    debug('[Paste Analysis] Text content extracted: ' + content.substring(0, 200));
+    setPastedContent(content);
 
-    // Extract text content
-    const textItem = items.find(item => item.type === 'text/plain');
-    let content = '';
-    if (textItem) {
-      content = await new Promise(resolve => textItem.getAsString(resolve));
+    let htmlContentStr = "";
+    let fallbackText = "";
+    if (clipboardData) {
+      htmlContentStr = clipboardData.getData('text/html');
+      if (htmlContentStr) {
+        const tempDoc = new DOMParser().parseFromString(htmlContentStr, "text/html");
+        fallbackText = tempDoc.body ? tempDoc.body.innerText.trim() : (tempDoc.documentElement.textContent?.trim() || '');
+        debug('[Paste Analysis] Fallback HTML text extracted: ' + fallbackText.substring(0, 200));
+      }
     }
 
-    // Extract images
-    const imageItems = items.filter(item => item.type.startsWith('image/'));
-    const images: File[] = imageItems
-      .map(item => item.getAsFile())
-      .filter((file): file is File => file !== null);
+    // Choose the best text: use fallback text if it's longer than plain text, otherwise use plain text
+    const finalContent = fallbackText.length > content.length ? fallbackText : content;
+    debug('[Paste Analysis] Final text content used for analysis:', finalContent.substring(0, 200));
 
-    if (!content && images.length === 0) {
-      toast({
-        variant: "destructive",
-        title: "No content found",
-        description: "Please copy both text and images from your listing.",
+    // Extract images from clipboardData.files if available
+    let images: File[] = [];
+    if (clipboardData && clipboardData.files && clipboardData.files.length > 0) {
+      images = Array.from(clipboardData.files);
+      debug('[Paste Analysis] Extracted ' + images.length + ' image(s) from clipboardData.files.');
+    }
+
+    // Fallback: always try to parse HTML content for additional images, and merge them
+    if (htmlContentStr) {
+      debug('[Paste Analysis] Attempting to parse HTML for additional images...');
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlContentStr, "text/html");
+      
+      // Extract images from <img> tags with deduplication
+      const imgElements = Array.from(doc.querySelectorAll("img"));
+      debug('[Paste Analysis] HTML parsing found ' + imgElements.length + ' <img> elements.');
+      const seenImgSrcs = new Set<string>();
+      const fetchedImgFiles = await Promise.all(imgElements.map(async (img, index) => {
+        const src = img.getAttribute("src") || img.getAttribute("data-src");
+        if (!src) {
+          debug('[Paste Analysis] No image src attribute found for image element: ' + img.outerHTML);
+          return null;
+        }
+        if (seenImgSrcs.has(src)) {
+          debug('[Paste Analysis] Duplicate image src skipped: ' + src);
+          return null;
+        }
+        seenImgSrcs.add(src);
+        debug('[Paste Analysis] Found image src via HTML: ' + src);
+        try {
+          let blob: Blob;
+          if (src.startsWith('data:')) {
+            blob = dataURLToBlob(src);
+          } else {
+            const response = await fetch(src);
+            blob = await response.blob();
+          }
+          const extension = blob.type.split('/')[1] || 'jpg';
+          const fileName = `pasted-image-${Date.now()}-${index}.${extension}`;
+          return new File([blob], fileName, { type: blob.type });
+        } catch (err) {
+          debug('[Paste Analysis] Error fetching image from src (HTML): ' + src, err);
+          return null;
+        }
+      }));
+      const htmlExtractedFiles = fetchedImgFiles.filter(file => file !== null) as File[];
+      debug('[Paste Analysis] HTML extraction yielded ' + htmlExtractedFiles.length + ' images.');
+      images = images.concat(htmlExtractedFiles);
+      debug('[Paste Analysis] Total images after merging from HTML: ' + images.length);
+    }
+
+    // Store any pasted images in state for later upload
+    if (images.length > 0) {
+      setPastedImages(images);
+      debug('[Paste Analysis] Pasted images stored:', images.length);
+    }
+
+    // Process analysis: parse and populate the form fields
+    if (finalContent.length > 0) {
+      const { data: analysisResult, error: analysisError } = await supabase.functions.invoke('analyze-content', {
+        body: { content: finalContent }
       });
+      debug('[Paste Analysis] Analysis result:', analysisResult);
+      if (analysisError) throw analysisError;
+
+      // For area, use square_feet if exists; if not, check for square_meters and convert to square feet.
+      const squareFeet = analysisResult.details?.square_feet || (analysisResult.details?.square_meters ? (parseFloat(analysisResult.details.square_meters) * 10.7639).toFixed(2) : "");
+
+      // Populate manual input fields with parsed analysis result
+      setManualInput({
+        address: analysisResult.address || "",
+        price: analysisResult.price ? analysisResult.price.toString() : "",
+        monthlyRent: analysisResult.monthly_rent ? analysisResult.monthly_rent.toString() : "",
+        estimatedExpenses: analysisResult.estimated_expenses ? analysisResult.estimated_expenses.toString() : "",
+        bedrooms: analysisResult.details?.bedrooms || "",
+        bathrooms: analysisResult.details?.bathrooms || "",
+        squareFeet: squareFeet,
+        description: analysisResult.details?.description || ""
+      });
+      toast({ title: "Property Details Parsed", description: "Review the property details under Manual Input." });
+      
+      // Switch to the Manual Input tab so the user can see the results
+      setActiveTab("manual");
+      setIsAnalyzing(false);
+      return;
+    } else if (images.length > 0) {
+      toast({ variant: "destructive", title: "No text found", description: "Only images were found. Please add property details manually." });
+      setIsAnalyzing(false);
       return;
     }
 
-    setIsAnalyzing(true);
-
-    try {
-      let propertyId = '';
-      if (content) {
-        const { data: analysisResult, error: analysisError } = await supabase.functions.invoke('analyze-content', {
-          body: { content }
-        });
-
-        if (analysisError) throw analysisError;
-
-        // Create the property record with analysis result
-        const { data: propertyData, error: propertyError } = await supabase
-          .from('property_analyses')
-          .insert({
-            ...analysisResult,
-            user_id: user?.id,
-            property_url: "", // Empty for paste analysis
-            images: [] // Will be updated after image upload
-          })
-          .select()
-          .single();
-
-        if (propertyError) throw propertyError;
-        propertyId = propertyData.id;
-      } else if (images.length > 0) {
-        // No text content, but images exist - create a property record with minimal data
-        const { data: propertyData, error: propertyError } = await supabase
-          .from('property_analyses')
-          .insert({
-            user_id: user?.id,
-            property_url: "",
-            images: []
-          })
-          .select()
-          .single();
-
-        if (propertyError) throw propertyError;
-        propertyId = propertyData.id;
-      }
-
-      // Then upload images if present
-      if (images.length > 0 && propertyId) {
-        const uploadedUrls: string[] = [];
-
-        for (const file of images) {
-          const fileName = `${propertyId}/${Date.now()}-${file.name}`;
-          const { error: uploadError } = await supabase.storage
-            .from('property-images')
-            .upload(fileName, file, {
-              contentType: file.type,
-              upsert: false
-            });
-
-          if (uploadError) throw uploadError;
-
-          const { data: { publicUrl } } = supabase.storage
-            .from('property-images')
-            .getPublicUrl(fileName);
-
-          uploadedUrls.push(publicUrl);
-        }
-
-        // Update property with image URLs
-        const { error: updateError } = await supabase
-          .from('property_analyses')
-          .update({ images: uploadedUrls })
-          .eq('id', propertyId);
-
-        if (updateError) throw updateError;
-      }
-
-      toast({
-        title: "Success",
-        description: "Property analyzed and images uploaded successfully",
-      });
-
-      // Navigate to the property details page
-      if (propertyId) {
-        navigate(`/properties/${propertyId}`);
-      }
-    } catch (error: any) {
+    if (!finalContent && images.length === 0) {
       toast({
         variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to analyze property",
+        title: "No content found",
+        description: "Please copy both text and images from your listing."
       });
-    } finally {
       setIsAnalyzing(false);
+      return;
     }
   };
 
@@ -209,24 +234,65 @@ export const NewProperty = () => {
         property_url: ""
       };
 
-      const { error: saveError } = await supabase
+      // Insert the property record and retrieve the inserted record with its id
+      const { data: insertedData, error: saveError } = await supabase
         .from('property_analyses')
-        .insert([propertyData]);
+        .insert([propertyData])
+        .select()
+        .single();
 
       if (saveError) throw saveError;
+      const propertyId = insertedData.id;
+
+      // If pasted images exist, upload them and update the property record
+      if (pastedImages.length > 0 && propertyId) {
+        const uploadedUrls: string[] = [];
+        for (const file of pastedImages) {
+          const fileName = `${propertyId}/${Date.now()}-${file.name}`;
+          debug('[Manual Submit] Uploading file:', fileName);
+          const { error: uploadError } = await supabase.storage
+            .from('property-images')
+            .upload(fileName, file, {
+              contentType: file.type,
+              upsert: false
+            });
+          if (uploadError) {
+            debug('[Manual Submit] Upload error for file:', fileName, uploadError);
+            throw uploadError;
+          }
+          const { data: { publicUrl } } = supabase.storage
+            .from('property-images')
+            .getPublicUrl(fileName);
+          debug('[Manual Submit] Received publicUrl for file:', fileName, publicUrl);
+          uploadedUrls.push(publicUrl);
+        }
+        debug('[Manual Submit] Final uploaded image URLs:', uploadedUrls);
+
+        const { error: updateError } = await supabase
+          .from('property_analyses')
+          .update({ images: uploadedUrls })
+          .eq('id', propertyId);
+
+        if (updateError) {
+          debug('[Manual Submit] Error updating property with images:', updateError);
+          throw updateError;
+        } else {
+          debug('[Manual Submit] Successfully updated property with images.');
+        }
+      }
 
       toast({
         title: "Success",
         description: "Property added successfully",
       });
 
-      navigate("/properties");
-    } catch (error) {
+      navigate(`/properties/${propertyId}`);
+    } catch (error: any) {
       console.error("Error adding property:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to add property. Please check your input and try again.",
+        description: error.message || "Failed to add property. Please check your input and try again.",
       });
     } finally {
       setIsLoading(false);
@@ -246,7 +312,7 @@ export const NewProperty = () => {
         <h1 className="text-3xl font-bold">Add New Property</h1>
       </div>
 
-      <Tabs defaultValue="manual" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="manual">Manual Input</TabsTrigger>
           <TabsTrigger value="paste">Paste from Website</TabsTrigger>
