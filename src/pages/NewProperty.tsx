@@ -87,7 +87,6 @@ export const NewProperty = () => {
     setIsAnalyzing(true);
 
     try {
-      // First analyze the text content if present
       let propertyId = '';
       if (content) {
         const { data: analysisResult, error: analysisError } = await supabase.functions.invoke('analyze-content', {
@@ -96,7 +95,7 @@ export const NewProperty = () => {
 
         if (analysisError) throw analysisError;
 
-        // Create the property record
+        // Create the property record with analysis result
         const { data: propertyData, error: propertyError } = await supabase
           .from('property_analyses')
           .insert({
@@ -104,6 +103,20 @@ export const NewProperty = () => {
             user_id: user?.id,
             property_url: "", // Empty for paste analysis
             images: [] // Will be updated after image upload
+          })
+          .select()
+          .single();
+
+        if (propertyError) throw propertyError;
+        propertyId = propertyData.id;
+      } else if (images.length > 0) {
+        // No text content, but images exist - create a property record with minimal data
+        const { data: propertyData, error: propertyError } = await supabase
+          .from('property_analyses')
+          .insert({
+            user_id: user?.id,
+            property_url: "",
+            images: []
           })
           .select()
           .single();
