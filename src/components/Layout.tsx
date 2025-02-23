@@ -1,18 +1,9 @@
-
-import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/providers/AuthProvider";
-import { Link, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { LogOut, Home, Building, Users, Settings } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Home, Building, Users, Settings } from "lucide-react";
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
-  const { user, signOut } = useAuth();
-  const navigate = useNavigate();
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate("/auth");
-  };
+  const { user } = useAuth();
 
   if (!user) {
     return <div className="min-h-screen">{children}</div>;
@@ -57,24 +48,6 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
               Settings
             </Link>
           </nav>
-          <div className="absolute bottom-4 left-0 right-0 px-3">
-            <Separator className="my-4" />
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="ml-2">
-                  <p className="text-sm font-medium">{user.email}</p>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleSignOut}
-                className="h-8 w-8"
-              >
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
         </div>
       </div>
 
