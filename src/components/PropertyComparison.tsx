@@ -142,11 +142,14 @@ export const PropertyComparison = ({ properties, onClose }: PropertyComparisonPr
             <TableRow>
               <TableCell className="font-medium">Pros</TableCell>
               {properties.map((property) => (
-                <TableCell key={property.id}>
+                <TableCell key={property.id} className="text-center">
                   {property.pros?.length ? (
-                    <ul className="list-disc ml-4">
+                    <ul className="list-none flex flex-col items-center">
                       {property.pros.map((pro, index) => (
-                        <li key={index}>{pro}</li>
+                        <li key={index} className="flex items-center">
+                          <span className="mr-2">•</span>
+                          {pro}
+                        </li>
                       ))}
                     </ul>
                   ) : (
@@ -158,11 +161,14 @@ export const PropertyComparison = ({ properties, onClose }: PropertyComparisonPr
             <TableRow>
               <TableCell className="font-medium">Cons</TableCell>
               {properties.map((property) => (
-                <TableCell key={property.id}>
+                <TableCell key={property.id} className="text-center">
                   {property.cons?.length ? (
-                    <ul className="list-disc ml-4">
+                    <ul className="list-none flex flex-col items-center">
                       {property.cons.map((con, index) => (
-                        <li key={index}>{con}</li>
+                        <li key={index} className="flex items-center">
+                          <span className="mr-2">•</span>
+                          {con}
+                        </li>
                       ))}
                     </ul>
                   ) : (
