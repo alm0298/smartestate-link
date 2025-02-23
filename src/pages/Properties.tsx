@@ -1,31 +1,43 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/providers/AuthProvider";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Plus, Image as ImageIcon } from "lucide-react";
+import { Plus, Image as ImageIcon, BarChart2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { debug, info, error as loggerError } from '@/lib/logger';
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { useEffect } from "react";
+import { PropertyComparison } from "@/components/PropertyComparison";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Property {
   id: string;
   address: string;
   price: number;
+  monthly_rent: number;
+  estimated_expenses: number;
   roi: number;
   user_id: string;
   images?: string[];
   details?: {
     square_meters?: number;
+    price_per_meter?: number;
   };
+  pros?: string[];
+  cons?: string[];
+  summary?: string;
+  score?: number;
 }
 
 export const Properties = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
+  const [showComparison, setShowComparison] = useState(false);
 
   debug('[Properties] Component mounting with user:', {
     userId: user?.id,
@@ -69,7 +81,20 @@ export const Properties = () => {
         debug('[Properties] Making Supabase query for user_id:', user.id);
         const { data, error } = await supabase
           .from("property_analyses")
-          .select("id, address, price, roi, images, details")
+          .select(`
+            id,
+            address,
+            price,
+            roi,
+            images,
+            details,
+            monthly_rent,
+            estimated_expenses,
+            pros,
+            cons,
+            summary,
+            score
+          `)
           .eq('user_id', user.id)
           .order('created_at', { ascending: false });
         
@@ -92,6 +117,30 @@ export const Properties = () => {
     enabled: !!user,
     retry: 1,
   });
+
+  const handlePropertyClick = (e: React.MouseEvent, propertyId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    setSelectedProperties(prev => {
+      if (prev.includes(propertyId)) {
+        return prev.filter(id => id !== propertyId);
+      }
+      return [...prev, propertyId];
+    });
+  };
+
+  const handleCompare = () => {
+    if (selectedProperties.length < 2) {
+      toast({
+        variant: "destructive",
+        title: "Select Properties",
+        description: "Please select at least 2 properties to compare."
+      });
+      return;
+    }
+    setShowComparison(true);
+  };
 
   if (!user) {
     info('[Properties] No user logged in, showing login prompt');
@@ -133,24 +182,55 @@ export const Properties = () => {
 
   info('[Properties] Rendering properties list:', properties?.length || 0);
 
+  const selectedPropertyData = properties?.filter(p => selectedProperties.includes(p.id)) || [];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Properties</h1>
-        <Button onClick={() => navigate("/properties/new")} className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          Add Property
-        </Button>
+        <div className="flex items-center gap-2">
+          {selectedProperties.length > 0 && (
+            <Button
+              variant="outline"
+              onClick={handleCompare}
+              className="flex items-center gap-2"
+            >
+              <BarChart2 className="h-4 w-4" />
+              Compare ({selectedProperties.length})
+            </Button>
+          )}
+          <Button onClick={() => navigate("/properties/new")} className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            Add Property
+          </Button>
+        </div>
       </div>
       
-      {properties && properties.length > 0 ? (
+      {showComparison ? (
+        <PropertyComparison
+          properties={selectedPropertyData}
+          onClose={() => {
+            setShowComparison(false);
+            setSelectedProperties([]);
+          }}
+        />
+      ) : properties && properties.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {properties.map((property) => (
             <Card 
               key={property.id}
-              className="cursor-pointer hover:shadow-lg transition-shadow overflow-hidden"
+              className="relative cursor-pointer hover:shadow-lg transition-shadow overflow-hidden"
               onClick={() => navigate(`/properties/${property.id}`)}
             >
+              <div
+                className="absolute top-2 left-2 z-10"
+                onClick={(e) => handlePropertyClick(e, property.id)}
+              >
+                <Checkbox
+                  checked={selectedProperties.includes(property.id)}
+                  className="h-5 w-5 bg-white/90"
+                />
+              </div>
               <AspectRatio ratio={16 / 9}>
                 {property.images?.[0] ? (
                   <img
@@ -195,5 +275,3 @@ export const Properties = () => {
     </div>
   );
 };
-
-export default Properties;
