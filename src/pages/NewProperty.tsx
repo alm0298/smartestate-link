@@ -283,6 +283,23 @@ export const NewProperty = () => {
       const estimatedExpenses = parseFloat(manualInput.estimatedExpenses) || monthlyRent * 0.4;
       const annualIncome = (monthlyRent - estimatedExpenses) * 12;
       const roi = ((annualIncome / price) * 100).toFixed(2);
+      const squareMeters = Number(manualInput.squareMeters) || null;
+      const pricePerMeter = squareMeters ? Math.round(price / squareMeters) : null;
+
+      // Get area statistics for price comparison
+      let areaStats = null;
+      if (manualInput.address) {
+        const { data: analysisData } = await supabase.functions.invoke('analyze-content', {
+          body: { content: manualInput.address }
+        });
+        if (analysisData?.details) {
+          areaStats = {
+            area_average: analysisData.details.area_average,
+            difference_percent: pricePerMeter ? Math.round(((pricePerMeter - analysisData.details.area_average) / analysisData.details.area_average) * 100) : null,
+            area_name: analysisData.details.area_name
+          };
+        }
+      }
 
       const propertyData = {
         address: manualInput.address,
@@ -293,8 +310,14 @@ export const NewProperty = () => {
         details: {
           bedrooms: manualInput.bedrooms,
           bathrooms: manualInput.bathrooms,
-          square_meters: Number(manualInput.squareMeters) || null,
-          description: manualInput.description
+          square_meters: squareMeters,
+          description: manualInput.description,
+          price_per_meter: pricePerMeter,
+          ...(areaStats && {
+            area_average: areaStats.area_average,
+            difference_percent: areaStats.difference_percent,
+            area_name: areaStats.area_name
+          })
         },
         user_id: user?.id,
         property_url: ""
