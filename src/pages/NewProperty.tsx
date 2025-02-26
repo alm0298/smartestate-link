@@ -56,6 +56,72 @@ function dataURLToBlob(dataurl: string): Blob {
   return new Blob([u8arr], { type: mime });
 }
 
+// Add a function to use the proxy service for external images
+const fetchImageWithProxy = async (imageUrl: string): Promise<Blob | null> => {
+  try {
+    debug('[Paste Analysis] Fetching image via proxy: ' + imageUrl);
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    const proxyUrl = `${supabaseUrl}/functions/v1/proxy-image`;
+    
+    if (!supabaseAnonKey) {
+      debug('[Paste Analysis] Missing SUPABASE_ANON_KEY environment variable');
+      return null;
+    }
+    
+    // First try with POST method
+    try {
+      debug('[Paste Analysis] Attempting POST request to proxy');
+      const response = await fetch(proxyUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseAnonKey}`
+        },
+        body: JSON.stringify({ imageUrl })
+      });
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        debug('[Paste Analysis] POST proxy request succeeded');
+        return blob;
+      }
+      
+      const errorText = await response.text();
+      debug('[Paste Analysis] POST proxy request failed with status: ' + response.status + ', error: ' + errorText);
+      
+      // If POST fails, try with GET method
+      debug('[Paste Analysis] Attempting GET request to proxy');
+      const getProxyUrl = `${proxyUrl}?url=${encodeURIComponent(imageUrl)}`;
+      const getResponse = await fetch(getProxyUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${supabaseAnonKey}`
+        }
+      });
+      
+      if (getResponse.ok) {
+        const blob = await getResponse.blob();
+        debug('[Paste Analysis] GET proxy request succeeded');
+        return blob;
+      }
+      
+      const getErrorText = await getResponse.text();
+      debug('[Paste Analysis] GET proxy request failed with status: ' + getResponse.status + ', error: ' + getErrorText);
+      
+      // If both methods fail, try direct fetch as a last resort
+      debug('[Paste Analysis] Both proxy methods failed, trying direct fetch');
+      return null;
+    } catch (error) {
+      debug('[Paste Analysis] Proxy fetch error: ' + error);
+      return null;
+    }
+  } catch (error) {
+    debug('[Paste Analysis] Proxy fetch failed: ' + error);
+    return null;
+  }
+};
+
 export const NewProperty = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -65,7 +131,7 @@ export const NewProperty = () => {
   const [pastedImages, setPastedImages] = useState<File[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStep, setAnalysisStep] = useState<string>("");
-  const [activeTab, setActiveTab] = useState("manual");
+  const [activeTab, setActiveTab] = useState("paste");
   const [analysisResult, setAnalysisResult] = useState<PropertyAnalysis | null>(null);
   
   // Manual input state
@@ -77,7 +143,11 @@ export const NewProperty = () => {
     squareMeters: "",
     description: "",
     monthlyRent: "",
-    estimatedExpenses: ""
+    estimatedExpenses: "",
+    summary: "",
+    score: 0,
+    pros: [] as string[],
+    cons: [] as string[]
   });
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -147,8 +217,29 @@ export const NewProperty = () => {
           if (src.startsWith('data:')) {
             blob = dataURLToBlob(src);
           } else {
-            const response = await fetch(src);
-            blob = await response.blob();
+            // Skip Google Maps API URLs that require a valid API key and signature
+            if (src.includes('maps.googleapis.com/maps/api/staticmap')) {
+              debug('[Paste Analysis] Skipping Google Maps API URL: ' + src);
+              return null;
+            }
+            
+            // Always try with proxy first for external images
+            debug('[Paste Analysis] Trying to fetch image with proxy first: ' + src);
+            const proxyBlob = await fetchImageWithProxy(src);
+            
+            if (proxyBlob) {
+              blob = proxyBlob;
+            } else {
+              // Fallback to direct fetch with no-cors mode as last resort
+              debug('[Paste Analysis] Proxy fetch failed, trying direct fetch with no-cors: ' + src);
+              try {
+                const response = await fetch(src, { mode: 'no-cors' });
+                blob = await response.blob();
+              } catch (directFetchError) {
+                debug('[Paste Analysis] All fetch methods failed, skipping image: ' + src);
+                return null;
+              }
+            }
           }
           const extension = blob.type.split('/')[1] || 'jpg';
           const fileName = `pasted-image-${Date.now()}-${index}.${extension}`;
@@ -174,11 +265,22 @@ export const NewProperty = () => {
     if (finalContent.length > 0) {
       setAnalysisStep("Analyzing property details...");
       try {
+        debug('[Paste Analysis] Calling analyze-content function with content length:', finalContent.length);
         const { data: result, error: analysisError } = await supabase.functions.invoke('analyze-content', {
           body: { content: finalContent }
         });
+        
+        if (analysisError) {
+          debug('[Paste Analysis] Analysis error:', analysisError);
+          throw analysisError;
+        }
+        
+        if (!result) {
+          debug('[Paste Analysis] No result returned from analyze-content function');
+          throw new Error('No result returned from analysis');
+        }
+        
         debug('[Paste Analysis] Analysis result:', result);
-        if (analysisError) throw analysisError;
 
         setAnalysisResult(result);
 
@@ -195,7 +297,11 @@ export const NewProperty = () => {
           bedrooms: result.details?.bedrooms || "",
           bathrooms: result.details?.bathrooms || "",
           squareMeters: squareMeters,
-          description: result.details?.description || ""
+          description: result.details?.description || "",
+          summary: result.details?.summary || "",
+          score: result.details?.score || 0,
+          pros: result.details?.pros || [],
+          cons: result.details?.cons || []
         });
         toast({ title: "Property Details Parsed", description: "Review the property details under Manual Input." });
         
@@ -203,11 +309,26 @@ export const NewProperty = () => {
         setActiveTab("manual");
       } catch (error) {
         console.error('Analysis error:', error);
+        
+        // Try to extract more detailed error information
+        let errorMessage = 'Failed to analyze the content. Please try again or enter details manually.';
+        if (error instanceof Error) {
+          debug('[Paste Analysis] Error details:', error.message);
+          
+          // Check if it's a Supabase FunctionsHttpError with more details
+          if (error.message.includes('Edge Function returned a non-2xx status code')) {
+            errorMessage = 'The analysis service is currently unavailable. Please try again later or enter details manually.';
+          }
+        }
+        
         toast({
           variant: "destructive",
           title: "Analysis Failed",
-          description: "Failed to analyze the content. Please try again or enter details manually."
+          description: errorMessage
         });
+        
+        // Still switch to manual input so user can enter details
+        setActiveTab("manual");
       } finally {
         setIsAnalyzing(false);
         setAnalysisStep("");
@@ -279,8 +400,48 @@ export const NewProperty = () => {
     
     try {
       const price = parseFloat(manualInput.price);
-      const monthlyRent = parseFloat(manualInput.monthlyRent) || price * 0.008;
-      const estimatedExpenses = parseFloat(manualInput.estimatedExpenses) || monthlyRent * 0.4;
+      
+      // If user provided monthly rent, use it; otherwise calculate with variable yield
+      let monthlyRent = parseFloat(manualInput.monthlyRent);
+      let rentYieldPercentage = 0.008; // Default 0.8%
+      
+      // If no monthly rent provided, calculate it with variable yield based on price
+      if (!monthlyRent) {
+        // Adjust yield based on price range
+        if (price > 500000) {
+          rentYieldPercentage = 0.006; // 0.6% for luxury properties
+        } else if (price > 300000) {
+          rentYieldPercentage = 0.007; // 0.7% for mid-high properties
+        } else if (price < 100000) {
+          rentYieldPercentage = 0.009; // 0.9% for lower-priced properties
+        }
+        
+        monthlyRent = price * rentYieldPercentage;
+      } else {
+        // Calculate the actual yield percentage for display
+        rentYieldPercentage = monthlyRent / price;
+      }
+      
+      // If user provided expenses, use them; otherwise calculate with variable percentage
+      let estimatedExpenses = parseFloat(manualInput.estimatedExpenses);
+      let expensePercentage = 0.4; // Default 40%
+      
+      // If no expenses provided, calculate them with variable percentage
+      if (!estimatedExpenses) {
+        // Adjust expenses based on property description
+        const description = manualInput.description.toLowerCase();
+        if (description.includes('new') || description.includes('renovated') || description.includes('modern')) {
+          expensePercentage = 0.35; // Lower expenses for newer properties
+        } else if (description.includes('old') || description.includes('needs work') || description.includes('fixer')) {
+          expensePercentage = 0.45; // Higher expenses for older properties
+        }
+        
+        estimatedExpenses = monthlyRent * expensePercentage;
+      } else {
+        // Calculate the actual expense percentage for display
+        expensePercentage = estimatedExpenses / monthlyRent;
+      }
+      
       const annualIncome = (monthlyRent - estimatedExpenses) * 12;
       const roi = ((annualIncome / price) * 100).toFixed(2);
       const squareMeters = Number(manualInput.squareMeters) || null;
@@ -319,6 +480,10 @@ export const NewProperty = () => {
             area_name: areaStats.area_name
           })
         },
+        pros: manualInput.pros.filter(pro => pro.trim() !== ''),
+        cons: manualInput.cons.filter(con => con.trim() !== ''),
+        summary: manualInput.summary,
+        score: manualInput.score,
         user_id: user?.id,
         property_url: ""
       };
@@ -391,7 +556,7 @@ export const NewProperty = () => {
     }
   };
 
-  const handleManualInputChange = (field: string, value: string) => {
+  const handleManualInputChange = (field: string, value: string | number | string[]) => {
     setManualInput(prev => ({
       ...prev,
       [field]: value
@@ -415,9 +580,38 @@ export const NewProperty = () => {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="manual">Manual Input</TabsTrigger>
           <TabsTrigger value="paste">Paste from Website</TabsTrigger>
+          <TabsTrigger value="manual">Manual Input</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="paste">
+          <Card>
+            <CardHeader>
+              <CardTitle>Paste Property Details</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="text-center p-8 border-2 border-dashed rounded-lg">
+                  {isAnalyzing ? (
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                      <div className="space-y-2">
+                        <p className="font-medium">Analyzing property details...</p>
+                        {analysisStep && (
+                          <p className="text-sm text-muted-foreground">{analysisStep}</p>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground">
+                      Copy content from your property listing and paste it here (Ctrl/Cmd + V)
+                    </p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="manual">
           <Card>
@@ -527,6 +721,116 @@ export const NewProperty = () => {
                   />
                 </div>
 
+                <div className="space-y-4">
+                  <div>
+                    <Label>Rating</Label>
+                    <div className="flex items-center gap-2 mt-2">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => handleManualInputChange('score', star)}
+                          className={clsx(
+                            "text-2xl transition-colors",
+                            manualInput.score >= star ? "text-yellow-400" : "text-gray-300"
+                          )}
+                        >
+                          ★
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="summary">Summary</Label>
+                    <textarea
+                      id="summary"
+                      value={manualInput.summary}
+                      onChange={(e) => handleManualInputChange('summary', e.target.value)}
+                      className="w-full min-h-[100px] p-2 border rounded-md"
+                      placeholder="Add a summary of the property..."
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Pros</Label>
+                      <div className="space-y-2">
+                        {manualInput.pros.map((pro, index) => (
+                          <div key={index} className="flex items-center gap-2">
+                            <Input
+                              value={pro}
+                              onChange={(e) => {
+                                const newPros = [...manualInput.pros];
+                                newPros[index] = e.target.value;
+                                handleManualInputChange('pros', newPros);
+                              }}
+                              placeholder={`Pro ${index + 1}`}
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                const newPros = [...manualInput.pros];
+                                newPros.splice(index, 1);
+                                handleManualInputChange('pros', newPros);
+                              }}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => handleManualInputChange('pros', [...manualInput.pros, ''])}
+                        >
+                          Add Pro
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Cons</Label>
+                      <div className="space-y-2">
+                        {manualInput.cons.map((con, index) => (
+                          <div key={index} className="flex items-center gap-2">
+                            <Input
+                              value={con}
+                              onChange={(e) => {
+                                const newCons = [...manualInput.cons];
+                                newCons[index] = e.target.value;
+                                handleManualInputChange('cons', newCons);
+                              }}
+                              placeholder={`Con ${index + 1}`}
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                const newCons = [...manualInput.cons];
+                                newCons.splice(index, 1);
+                                handleManualInputChange('cons', newCons);
+                              }}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => handleManualInputChange('cons', [...manualInput.cons, ''])}
+                        >
+                          Add Con
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <Label>Images</Label>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -583,35 +887,6 @@ export const NewProperty = () => {
                   </Button>
                 </div>
               </form>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="paste">
-          <Card>
-            <CardHeader>
-              <CardTitle>Paste Property Details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="text-center p-8 border-2 border-dashed rounded-lg">
-                  {isAnalyzing ? (
-                    <div className="flex flex-col items-center gap-4">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                      <div className="space-y-2">
-                        <p className="font-medium">Analyzing property details...</p>
-                        {analysisStep && (
-                          <p className="text-sm text-muted-foreground">{analysisStep}</p>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground">
-                      Copy content from your property listing and paste it here (Ctrl/Cmd + V)
-                    </p>
-                  )}
-                </div>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
