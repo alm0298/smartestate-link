@@ -5,13 +5,13 @@ import path from "path";
 // Custom logging plugin
 const loggingPlugin = () => ({
   name: 'logging-plugin',
-  configureServer(server) {
-    server.middlewares.use((req, res, next) => {
+  configureServer(server: any) {
+    server.middlewares.use((req: any, res: any, next: any) => {
       const originalWrite = res.write;
       const originalEnd = res.end;
 
       const logMessage = (chunk: any) => {
-        if (typeof chunk === 'string' || chunk instanceof Buffer) {
+        if (typeof chunk === 'string' || Buffer.isBuffer(chunk)) {
           const str = chunk.toString();
           if (
             str.includes('console.log') ||
@@ -25,12 +25,12 @@ const loggingPlugin = () => ({
 
       res.write = function (chunk: any, ...args: any[]) {
         logMessage(chunk);
-        return originalWrite.apply(res, [chunk, ...args]);
+        return originalWrite.apply(res, [chunk, ...args] as any);
       };
 
       res.end = function (chunk: any, ...args: any[]) {
         if (chunk) logMessage(chunk);
-        return originalEnd.apply(res, [chunk, ...args]);
+        return originalEnd.apply(res, [chunk, ...args] as any);
       };
 
       next();
