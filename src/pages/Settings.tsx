@@ -3,6 +3,10 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/providers/AuthProvider";
 import { useNavigate } from "react-router-dom";
 import { LogOut } from "lucide-react";
+import { UserManagement } from "@/components/UserManagement";
+
+// For development purposes, show user management to all users
+const SHOW_USER_MANAGEMENT_TO_ALL = true;
 
 export const Settings = () => {
   const { user, signOut } = useAuth();
@@ -12,6 +16,12 @@ export const Settings = () => {
     await signOut();
     navigate("/auth");
   };
+
+  // Check if user has admin role
+  const isAdmin = user?.user_metadata?.role === "admin";
+  
+  // Show user management if user is admin or if development flag is enabled
+  const showUserManagement = isAdmin || SHOW_USER_MANAGEMENT_TO_ALL;
 
   return (
     <div className="space-y-6">
@@ -37,9 +47,22 @@ export const Settings = () => {
                 Sign Out
               </Button>
             </div>
+            {user?.user_metadata?.role && (
+              <div>
+                <p className="text-sm text-muted-foreground">Role</p>
+                <p className="text-lg font-medium capitalize">{user.user_metadata.role}</p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
+      
+      {/* Show user management based on role or development flag */}
+      {showUserManagement && (
+        <div className="pt-4">
+          <UserManagement />
+        </div>
+      )}
     </div>
   );
 };
