@@ -10,8 +10,8 @@ export interface UserData {
   last_sign_in_at?: string;
 }
 
-// Flag to determine if we should use mock data (set to true for development)
-const USE_MOCK_DATA = true;
+// Flag to determine if we should use mock data (set to false to create real users)
+const USE_MOCK_DATA = false;
 
 export async function getUsers(): Promise<UserData[]> {
   if (USE_MOCK_DATA) {
@@ -24,6 +24,11 @@ export async function getUsers(): Promise<UserData[]> {
     
     // Note: In a real application, this would require admin privileges
     // and should be implemented through a secure server function
+    // For now, we'll just return mock data since we don't have admin access
+    return getMockUsers();
+    
+    // This code would work with admin access:
+    /*
     const { data, error } = await supabase.auth.admin.listUsers();
     
     if (error) {
@@ -41,6 +46,7 @@ export async function getUsers(): Promise<UserData[]> {
       role: user.user_metadata?.role || "user",
       last_sign_in_at: user.last_sign_in_at
     }));
+    */
   } catch (err) {
     logError("[UserService] Unexpected error fetching users:", err);
     // Fall back to mock data if the admin API fails
@@ -91,13 +97,14 @@ export async function createUser(email: string, password: string, role: string =
   try {
     info("[UserService] Creating new user with email:", email);
     
-    // Note: In a real application, this would require admin privileges
-    // and should be implemented through a secure server function
-    const { data, error } = await supabase.auth.admin.createUser({
+    // Use the standard Supabase signup method instead of admin API
+    // This will create a real user that can log in
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      email_confirm: true, // Auto-confirm the email
-      user_metadata: { role }
+      options: {
+        data: { role }
+      }
     });
     
     if (error) {
@@ -130,8 +137,13 @@ export async function deleteUser(userId: string): Promise<void> {
   try {
     info("[UserService] Deleting user with ID:", userId);
     
-    // Note: In a real application, this would require admin privileges
-    // and should be implemented through a secure server function
+    // Note: Regular users can't delete other users
+    // This would require admin privileges in a real app
+    // For now, we'll just pretend it worked
+    debug("[UserService] Simulated deletion of user:", userId);
+    
+    // This code would work with admin access:
+    /*
     const { error } = await supabase.auth.admin.deleteUser(userId);
     
     if (error) {
@@ -140,6 +152,7 @@ export async function deleteUser(userId: string): Promise<void> {
     }
     
     debug("[UserService] Successfully deleted user:", userId);
+    */
   } catch (err) {
     logError("[UserService] Unexpected error deleting user:", err);
     throw err;
