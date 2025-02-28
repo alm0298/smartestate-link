@@ -45,6 +45,7 @@ export default defineConfig({
     port: 8080,
   },
   plugins: [react(), loggingPlugin()],
+  base: '/smartestate-link/',
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
