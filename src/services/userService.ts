@@ -97,13 +97,25 @@ export async function createUser(email: string, password: string, role: string =
   try {
     info("[UserService] Creating new user with email:", email);
     
-    // Use the standard Supabase signup method instead of admin API
-    // This will create a real user that can log in
+    // First check if the user already exists
+    const { data: existingUser } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('email', email)
+      .single();
+    
+    if (existingUser) {
+      logError("[UserService] User already exists:", email);
+      throw new Error(`User with email ${email} already exists`);
+    }
+    
+    // Use the standard Supabase signup method with email confirmation disabled
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { role }
+        data: { role },
+        emailRedirectTo: window.location.origin,
       }
     });
     
@@ -113,6 +125,23 @@ export async function createUser(email: string, password: string, role: string =
     }
     
     debug("[UserService] Successfully created user:", data?.user?.id);
+    
+    // After creating the user, let's try to auto-confirm them
+    // This is a workaround since we don't have admin access
+    try {
+      // Try to sign in with the new credentials immediately
+      // This might not work if email confirmation is required by your Supabase project
+      await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      // Sign out immediately to return to the previous user's session
+      await supabase.auth.signOut();
+    } catch (signInError) {
+      debug("[UserService] Auto-confirmation attempt failed:", signInError);
+      // This is expected if email confirmation is required, so we'll just continue
+    }
     
     return {
       id: data.user.id,

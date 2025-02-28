@@ -80,6 +80,15 @@ export const UserManagement = () => {
       return;
     }
 
+    if (newUserPassword.length < 6) {
+      toast({
+        title: "Validation Error",
+        description: "Password must be at least 6 characters long.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setIsCreating(true);
       const newUser = await createUser(newUserEmail, newUserPassword, newUserRole);
@@ -90,13 +99,14 @@ export const UserManagement = () => {
       setIsAddUserOpen(false);
       toast({
         title: "Success",
-        description: `User ${newUserEmail} created successfully.`,
+        description: `User ${newUserEmail} created successfully. Note: Email verification may be required before login.`,
       });
     } catch (error) {
       console.error("Error creating user:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to create user. Please try again.";
       toast({
         title: "Error",
-        description: "Failed to create user. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
