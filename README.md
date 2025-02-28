@@ -30,6 +30,22 @@ This project is configured for deployment on GitHub Pages.
    - Your site will be available at: `https://alm0298.github.io/smartestate-link/`
    - The first deployment may take a few minutes to complete
 
+### Troubleshooting Deployment
+
+If you encounter issues with the GitHub Actions deployment:
+
+1. **Check workflow logs**:
+   - Go to the Actions tab in your repository
+   - Look for any failed workflows and review the logs
+
+2. **Package lock issues**:
+   - If you see errors related to package-lock.json mismatches, run `npm install` locally
+   - Commit and push the updated package-lock.json file
+
+3. **Environment variables**:
+   - Ensure all required environment variables are set in the repository secrets
+   - The workflow uses these secrets during the build process
+
 ### Local Development
 
 1. Install dependencies:
