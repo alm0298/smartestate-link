@@ -1,6 +1,6 @@
 import { createRoot } from 'react-dom/client'
-// import App from './App.tsx'
-import TestApp from './TestApp.tsx'
+import App from './App.tsx'
+// import TestApp from './TestApp.tsx'
 import './index.css'
 
 // For debugging
@@ -14,7 +14,7 @@ try {
   }
   
   const root = createRoot(rootElement);
-  root.render(<TestApp />);
+  root.render(<App />);
   console.log('React app rendered successfully');
 } catch (error) {
   console.error('Error rendering React app:', error);

@@ -52,11 +52,6 @@
         font-weight: bold;
       }
     </style>
-    
-    <!-- Load React from CDN -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
   </head>
 
   <body>
@@ -68,123 +63,41 @@
       </div>
     </div>
     
-    <!-- Inline React Component -->
-    <script type="text/babel">
-      const { useState, useEffect } = React;
+    <script type="module" src="/src/main.tsx"></script>
+    
+    <script>
+      console.log('Initial page load at:', new Date().toISOString());
+      console.log('User agent:', navigator.userAgent);
+      console.log('Base URL:', window.location.href);
       
-      function App() {
-        const [count, setCount] = useState(0);
-        
-        useEffect(() => {
-          console.log("App mounted successfully");
-        }, []);
-        
-        return (
-          <div style={{ 
-            fontFamily: 'Arial, sans-serif',
-            maxWidth: '800px',
-            margin: '0 auto',
-            padding: '20px'
-          }}>
-            <header style={{ 
-              backgroundColor: '#333',
-              color: 'white',
-              padding: '20px',
-              marginBottom: '20px',
-              borderRadius: '5px'
-            }}>
-              <h1>SmartEstate Link</h1>
-              <p>Property Management System</p>
-            </header>
-
-            <div style={{ 
-              backgroundColor: '#f5f5f5',
-              padding: '20px',
-              borderRadius: '5px',
-              marginBottom: '20px'
-            }}>
-              <h2>React Application is Working!</h2>
-              <p>This is a simplified version of the application that doesn't require authentication.</p>
-              <p>
-                <button 
-                  onClick={() => setCount(count + 1)}
-                  style={{
-                    backgroundColor: '#4CAF50',
-                    color: 'white',
-                    border: 'none',
-                    padding: '10px 20px',
-                    borderRadius: '4px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Count: {count}
-                </button>
-              </p>
-            </div>
-
-            <div style={{ 
-              border: '1px solid #ddd',
-              borderRadius: '5px',
-              padding: '20px',
-              marginBottom: '20px'
-            }}>
-              <h2>Sample Properties</h2>
-              {[
-                { id: 1, address: '123 Main St', price: '$350,000', type: 'Single Family' },
-                { id: 2, address: '456 Oak Ave', price: '$425,000', type: 'Townhouse' },
-                { id: 3, address: '789 Pine Rd', price: '$550,000', type: 'Condo' }
-              ].map(property => (
-                <div key={property.id} style={{ 
-                  border: '1px solid #ddd',
-                  borderRadius: '5px',
-                  padding: '15px',
-                  marginBottom: '10px'
-                }}>
-                  <h3>{property.address}</h3>
-                  <p>Price: {property.price}</p>
-                  <p>Type: {property.type}</p>
-                  <button
-                    style={{
-                      backgroundColor: '#2196F3',
-                      color: 'white',
-                      border: 'none',
-                      padding: '8px 16px',
-                      borderRadius: '4px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    View Details
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            <footer style={{ 
-              textAlign: 'center',
-              padding: '20px',
-              borderTop: '1px solid #ddd',
-              marginTop: '20px'
-            }}>
-              <p>SmartEstate Link &copy; 2025</p>
-            </footer>
-          </div>
-        );
-      }
-      
-      try {
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-        console.log('React app rendered successfully');
-      } catch (error) {
-        console.error('Error rendering React app:', error);
-        document.getElementById('root').innerHTML = `
-          <div style="color: red; padding: 20px; border: 1px solid #f44336; margin: 20px;">
-            <h2>Error Rendering Application</h2>
-            <p>${error.message}</p>
-            <pre>${error.stack}</pre>
-          </div>
-        `;
-      }
+      // This script will be used as a fallback if the main app fails to load
+      window.addEventListener('load', function() {
+        // Check if the app has loaded after 3 seconds
+        setTimeout(function() {
+          const rootElement = document.getElementById('root');
+          // If the root element still contains our loading message, the app didn't load
+          if (rootElement && rootElement.innerHTML.includes('Loading application...')) {
+            console.error('Application failed to load within timeout period');
+            
+            // Create a button to try loading the standalone version
+            const fallbackButton = document.createElement('button');
+            fallbackButton.textContent = 'Load Simplified Version';
+            fallbackButton.style.padding = '10px 20px';
+            fallbackButton.style.backgroundColor = '#4CAF50';
+            fallbackButton.style.color = 'white';
+            fallbackButton.style.border = 'none';
+            fallbackButton.style.borderRadius = '4px';
+            fallbackButton.style.cursor = 'pointer';
+            fallbackButton.style.marginTop = '20px';
+            
+            fallbackButton.onclick = function() {
+              window.location.href = 'standalone.html';
+            };
+            
+            rootElement.querySelector('.container').appendChild(fallbackButton);
+          }
+        }, 3000);
+      });
     </script>
   </body>
 </html>
