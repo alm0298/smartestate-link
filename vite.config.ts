@@ -73,4 +73,7 @@ export default defineConfig({
   optimizeDeps: {
     include: ['react', 'react-dom']
   },
+  define: {
+    'process.env': {}
+  },
 });
