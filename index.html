@@ -50,6 +50,25 @@
         color: green;
         font-weight: bold;
       }
+      button {
+        padding: 8px 16px;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-top: 10px;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
+      .card {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 16px;
+        margin-top: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
     </style>
     <!-- Load React from CDN -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -58,50 +77,67 @@
   </head>
 
   <body>
-    <div id="root">
-      <div class="container">
-        <h1>SmartEstate Link</h1>
-        <p>There seems to be an issue loading the application.</p>
-        <p>Please check the console for errors.</p>
-        <div id="status"></div>
-        <div id="react-test"></div>
-      </div>
-    </div>
+    <div id="root"></div>
     
-    <script>
-      document.addEventListener('DOMContentLoaded', function() {
-        const statusDiv = document.getElementById('status');
-        statusDiv.innerHTML = '<p>JavaScript is working correctly!</p>';
-        
-        // Log some information about the environment
-        console.log('Page loaded at:', new Date().toISOString());
-        console.log('User agent:', navigator.userAgent);
-        console.log('Base URL:', window.location.href);
-      });
-    </script>
-
-    <!-- Test React rendering -->
+    <!-- Standalone React Application -->
     <script type="text/babel">
-      const TestComponent = () => {
-        const [count, setCount] = React.useState(0);
+      const { useState, useEffect } = React;
+      
+      const App = () => {
+        const [count, setCount] = useState(0);
+        const [properties, setProperties] = useState([
+          { id: 1, address: "123 Main St", price: "$350,000", type: "Single Family" },
+          { id: 2, address: "456 Oak Ave", price: "$425,000", type: "Townhouse" },
+          { id: 3, address: "789 Pine Rd", price: "$550,000", type: "Condo" }
+        ]);
+        
+        useEffect(() => {
+          console.log("App mounted");
+          document.title = "SmartEstate Link - " + count;
+          
+          return () => {
+            console.log("App unmounted");
+          };
+        }, [count]);
         
         return (
-          <div>
-            <p className="success">React is working correctly!</p>
-            <p>Count: {count}</p>
-            <button onClick={() => setCount(count + 1)}>Increment</button>
+          <div className="container">
+            <h1>SmartEstate Link</h1>
+            <p className="success">React application is working correctly!</p>
+            
+            <div>
+              <p>Count: {count}</p>
+              <button onClick={() => setCount(count + 1)}>Increment</button>
+            </div>
+            
+            <h2>Properties</h2>
+            {properties.map(property => (
+              <div key={property.id} className="card">
+                <h3>{property.address}</h3>
+                <p>Price: {property.price}</p>
+                <p>Type: {property.type}</p>
+                <button onClick={() => alert(`Viewing details for ${property.address}`)}>
+                  View Details
+                </button>
+              </div>
+            ))}
           </div>
         );
       };
       
       try {
-        const root = ReactDOM.createRoot(document.getElementById('react-test'));
-        root.render(<TestComponent />);
-        console.log('React rendered successfully');
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+        console.log('React app rendered successfully');
       } catch (error) {
-        console.error('Error rendering React:', error);
-        document.getElementById('react-test').innerHTML = 
-          `<p class="error">Error rendering React: ${error.message}</p>`;
+        console.error('Error rendering React app:', error);
+        document.getElementById('root').innerHTML = `
+          <div style="color: red; padding: 20px; border: 1px solid #f44336; margin: 20px;">
+            <h2>Error Rendering Application</h2>
+            <p>${error.message}</p>
+            <pre>${error.stack}</pre>
+          </div>
+        `;
       }
     </script>
   </body>
