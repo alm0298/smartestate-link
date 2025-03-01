@@ -42,7 +42,19 @@
       h1 {
         color: #333;
       }
+      .error {
+        color: red;
+        font-weight: bold;
+      }
+      .success {
+        color: green;
+        font-weight: bold;
+      }
     </style>
+    <!-- Load React from CDN -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
   </head>
 
   <body>
@@ -52,6 +64,7 @@
         <p>There seems to be an issue loading the application.</p>
         <p>Please check the console for errors.</p>
         <div id="status"></div>
+        <div id="react-test"></div>
       </div>
     </div>
     
@@ -65,6 +78,31 @@
         console.log('User agent:', navigator.userAgent);
         console.log('Base URL:', window.location.href);
       });
+    </script>
+
+    <!-- Test React rendering -->
+    <script type="text/babel">
+      const TestComponent = () => {
+        const [count, setCount] = React.useState(0);
+        
+        return (
+          <div>
+            <p className="success">React is working correctly!</p>
+            <p>Count: {count}</p>
+            <button onClick={() => setCount(count + 1)}>Increment</button>
+          </div>
+        );
+      };
+      
+      try {
+        const root = ReactDOM.createRoot(document.getElementById('react-test'));
+        root.render(<TestComponent />);
+        console.log('React rendered successfully');
+      } catch (error) {
+        console.error('Error rendering React:', error);
+        document.getElementById('react-test').innerHTML = 
+          `<p class="error">Error rendering React: ${error.message}</p>`;
+      }
     </script>
   </body>
 </html>
