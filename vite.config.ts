@@ -44,7 +44,7 @@ export default defineConfig({
     host: "::",
     port: 8080,
   },
-  plugins: [react(), loggingPlugin()],
+  plugins: [react()],
   base: '/smartestate-link/',
   resolve: {
     alias: {
