@@ -60,6 +60,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'index.html'),
+        standalone: path.resolve(__dirname, 'standalone.html'),
       },
       output: {
         entryFileNames: 'assets/[name]-[hash].js',
@@ -69,4 +70,7 @@ export default defineConfig({
     }
   },
   logLevel: 'info',
+  optimizeDeps: {
+    include: ['react', 'react-dom']
+  },
 });
