@@ -25,9 +25,46 @@
       }(window.location))
     </script>
     <!-- End Single Page Apps for GitHub Pages -->
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        line-height: 1.6;
+      }
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
+      h1 {
+        color: #333;
+      }
+    </style>
   </head>
 
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="container">
+        <h1>SmartEstate Link</h1>
+        <p>There seems to be an issue loading the application.</p>
+        <p>Please check the console for errors.</p>
+        <div id="status"></div>
+      </div>
+    </div>
+    
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const statusDiv = document.getElementById('status');
+        statusDiv.innerHTML = '<p>JavaScript is working correctly!</p>';
+        
+        // Log some information about the environment
+        console.log('Page loaded at:', new Date().toISOString());
+        console.log('User agent:', navigator.userAgent);
+        console.log('Base URL:', window.location.href);
+      });
+    </script>
   </body>
 </html>
