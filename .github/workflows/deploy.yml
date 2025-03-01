@@ -29,10 +29,14 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '18'
+          # Disable cache to ensure fresh install
           cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
       
       - name: Install dependencies
-        run: npm install
+        run: |
+          echo "Using npm install to update dependencies"
+          npm install --no-fund --no-audit
       
       - name: Build
         run: npm run build
