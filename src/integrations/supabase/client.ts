@@ -3,25 +3,42 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { debug, info, warn, error as loggerError } from '@/lib/logger';
 
+// Get environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl) {
+// For local development, check if we're using placeholder values
+const isPlaceholder = 
+  supabaseUrl === 'your_supabase_url' || 
+  supabaseAnonKey === 'your_supabase_anon_key';
+
+// If we're in development and using placeholder values, use hardcoded values
+// This allows the app to work locally without setting up .env
+const finalSupabaseUrl = isPlaceholder && import.meta.env.DEV 
+  ? 'https://lwsesoxppmoerwwvvdar.supabase.co'
+  : supabaseUrl;
+
+const finalSupabaseAnonKey = isPlaceholder && import.meta.env.DEV
+  ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx3c2Vzb3hwcG1vZXJ3d3Z2ZGFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDk1NTI1NzcsImV4cCI6MjAyNTEyODU3N30.Nh8F_3CXuqGAqpkQB-8Ky4Oi9Ry-4HMVGD5FgFmqrYo'
+  : supabaseAnonKey;
+
+// Check if we have valid values
+if (!finalSupabaseUrl) {
   throw new Error('Missing VITE_SUPABASE_URL');
 }
 
-if (!supabaseAnonKey) {
+if (!finalSupabaseAnonKey) {
   throw new Error('Missing VITE_SUPABASE_ANON_KEY');
 }
 
-debug('[Supabase] Initializing client with URL:', supabaseUrl);
+debug('[Supabase] Initializing client with URL:', finalSupabaseUrl);
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
 export const supabase = createClient<Database>(
-  supabaseUrl,
-  supabaseAnonKey,
+  finalSupabaseUrl,
+  finalSupabaseAnonKey,
   {
     auth: {
       persistSession: true,
