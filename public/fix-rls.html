@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fix RLS Policies</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    h1 {
+      color: #333;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 10px;
+    }
+    button {
+      background-color: #4CAF50;
+      border: none;
+      color: white;
+      padding: 10px 20px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 16px;
+      margin: 10px 0;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+    pre {
+      background-color: #f5f5f5;
+      padding: 15px;
+      border-radius: 5px;
+      overflow-x: auto;
+    }
+    .error {
+      color: #D32F2F;
+      background-color: #FFEBEE;
+      padding: 10px;
+      border-radius: 4px;
+      margin: 10px 0;
+    }
+    .success {
+      color: #388E3C;
+      background-color: #E8F5E9;
+      padding: 10px;
+      border-radius: 4px;
+      margin: 10px 0;
+    }
+    #status {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Fix RLS Policies</h1>
+  
+  <p>This tool will update the Row Level Security (RLS) policies for the property_analyses table to allow users to view properties that have been shared with them.</p>
+  
+  <div>
+    <button id="fixRlsBtn">Fix RLS Policies</button>
+  </div>
+  
+  <div id="status"></div>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const fixRlsBtn = document.getElementById('fixRlsBtn');
+      const statusDiv = document.getElementById('status');
+      
+      // Check if user is logged in
+      const checkAuth = async () => {
+        try {
+          const response = await fetch('https://lwsesoxppmoerwwvvdar.supabase.co/auth/v1/user', {
+            headers: {
+              'apikey': localStorage.getItem('supabase.auth.token.access_token') || '',
+              'Authorization': `Bearer ${localStorage.getItem('supabase.auth.token.access_token') || ''}`,
+            }
+          });
+          
+          if (!response.ok) {
+            statusDiv.innerHTML = `<div class="error">You must be logged in to use this tool. Please log in to your account first.</div>`;
+            fixRlsBtn.disabled = true;
+            return false;
+          }
+          
+          return true;
+        } catch (error) {
+          statusDiv.innerHTML = `<div class="error">Error checking authentication: ${error.message}</div>`;
+          fixRlsBtn.disabled = true;
+          return false;
+        }
+      };
+      
+      // Fix RLS policies
+      const fixRls = async () => {
+        try {
+          fixRlsBtn.disabled = true;
+          statusDiv.innerHTML = `<p>Updating RLS policies...</p>`;
+          
+          const response = await fetch('https://lwsesoxppmoerwwvvdar.functions.supabase.co/fix-rls', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('supabase.auth.token.access_token') || ''}`,
+            }
+          });
+          
+          const result = await response.json();
+          
+          if (response.ok) {
+            statusDiv.innerHTML = `
+              <div class="success">
+                <p>RLS policies updated successfully!</p>
+                <p>You should now be able to see properties that have been shared with you.</p>
+                <p>Please refresh the Properties page to see the changes.</p>
+              </div>
+              <h3>Response:</h3>
+              <pre>${JSON.stringify(result, null, 2)}</pre>
+            `;
+          } else {
+            statusDiv.innerHTML = `
+              <div class="error">
+                <p>Failed to update RLS policies: ${result.error}</p>
+                <p>Details: ${JSON.stringify(result.details)}</p>
+              </div>
+            `;
+          }
+        } catch (error) {
+          statusDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+        } finally {
+          fixRlsBtn.disabled = false;
+        }
+      };
+      
+      // Add event listener
+      fixRlsBtn.addEventListener('click', async () => {
+        const isAuthenticated = await checkAuth();
+        if (isAuthenticated) {
+          await fixRls();
+        }
+      });
+      
+      // Check auth on page load
+      checkAuth();
+    });
+  </script>
+</body>
+</html> 
