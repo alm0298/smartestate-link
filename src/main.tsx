@@ -1,32 +1,33 @@
-import { createRoot } from 'react-dom/client'
-import App from './App.tsx'
-// import TestApp from './TestApp.tsx'
-import './index.css'
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App.tsx';
+// import TestApp from './TestApp.tsx';
+import './index.css';
+import { debug, error as logError } from './lib/logger';
 
-// For debugging
-console.log('main.tsx is executing');
-console.log('Root element:', document.getElementById("root"));
+debug('[Main] Application starting');
+
+const rootElement = document.getElementById('root');
+
+if (!rootElement) {
+  logError('[Main] Root element not found');
+  throw new Error('Root element not found');
+}
 
 try {
-  const rootElement = document.getElementById("root");
-  if (!rootElement) {
-    throw new Error("Root element not found");
-  }
-  
-  const root = createRoot(rootElement);
+  const root = ReactDOM.createRoot(rootElement);
   root.render(<App />);
-  console.log('React app rendered successfully');
+  debug('[Main] App rendered successfully');
 } catch (error) {
-  console.error('Error rendering React app:', error);
+  logError('[Main] Error rendering app:', error);
   
-  // Display error on page
-  const rootElement = document.getElementById("root");
+  // Display error on the page
   if (rootElement) {
     rootElement.innerHTML = `
       <div style="color: red; padding: 20px; border: 1px solid #f44336; margin: 20px;">
         <h2>Error Rendering Application</h2>
-        <p>${error.message}</p>
-        <pre>${error.stack}</pre>
+        <p>${error instanceof Error ? error.message : 'Unknown error'}</p>
+        <pre>${error instanceof Error ? error.stack : ''}</pre>
       </div>
     `;
   }
