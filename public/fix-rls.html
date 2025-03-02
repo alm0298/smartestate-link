@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Fix RLS Policies</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
@@ -17,16 +18,23 @@
       border-bottom: 1px solid #eee;
       padding-bottom: 10px;
     }
+    .card {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      background-color: #f9f9f9;
+    }
     button {
       background-color: #4CAF50;
-      border: none;
       color: white;
-      padding: 10px 20px;
+      border: none;
+      padding: 10px 15px;
       text-align: center;
       text-decoration: none;
       display: inline-block;
       font-size: 16px;
-      margin: 10px 0;
+      margin: 4px 2px;
       cursor: pointer;
       border-radius: 4px;
     }
@@ -34,123 +42,231 @@
       background-color: #cccccc;
       cursor: not-allowed;
     }
-    pre {
-      background-color: #f5f5f5;
-      padding: 15px;
-      border-radius: 5px;
-      overflow-x: auto;
+    .input-group {
+      margin-bottom: 15px;
     }
-    .error {
-      color: #D32F2F;
-      background-color: #FFEBEE;
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .status {
+      margin-top: 20px;
       padding: 10px;
       border-radius: 4px;
-      margin: 10px 0;
     }
     .success {
-      color: #388E3C;
-      background-color: #E8F5E9;
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .error {
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    pre {
+      background-color: #f5f5f5;
       padding: 10px;
       border-radius: 4px;
-      margin: 10px 0;
-    }
-    #status {
-      margin-top: 20px;
+      overflow-x: auto;
     }
   </style>
 </head>
 <body>
   <h1>Fix RLS Policies</h1>
   
-  <p>This tool will update the Row Level Security (RLS) policies for the property_analyses table to allow users to view properties that have been shared with them.</p>
-  
-  <div>
-    <button id="fixRlsBtn">Fix RLS Policies</button>
+  <div class="card">
+    <h2>Instructions</h2>
+    <p>This tool will fix the Row Level Security (RLS) policies for your property_analyses table to allow users to view both their own properties and properties shared with them.</p>
+    <p>You'll need to enter your Supabase URL and service role key from your Supabase dashboard:</p>
+    <ol>
+      <li>Go to <a href="https://app.supabase.com" target="_blank">https://app.supabase.com</a></li>
+      <li>Select your project</li>
+      <li>Go to Project Settings > API</li>
+      <li>Copy the URL and service role key</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <div class="input-group">
+      <label for="supabaseUrl">Supabase URL:</label>
+      <input type="text" id="supabaseUrl" placeholder="https://your-project.supabase.co">
+    </div>
+    
+    <div class="input-group">
+      <label for="serviceRoleKey">Service Role Key:</label>
+      <input type="password" id="serviceRoleKey" placeholder="your-service-role-key">
+    </div>
+    
+    <button id="fixButton">Fix RLS Policies</button>
   </div>
   
-  <div id="status"></div>
+  <div id="status" style="display: none;"></div>
   
   <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      const fixRlsBtn = document.getElementById('fixRlsBtn');
-      const statusDiv = document.getElementById('status');
+    document.getElementById('fixButton').addEventListener('click', async function() {
+      const supabaseUrl = document.getElementById('supabaseUrl').value.trim();
+      const serviceRoleKey = document.getElementById('serviceRoleKey').value.trim();
       
-      // Check if user is logged in
-      const checkAuth = async () => {
-        try {
-          const response = await fetch('https://lwsesoxppmoerwwvvdar.supabase.co/auth/v1/user', {
-            headers: {
-              'apikey': localStorage.getItem('supabase.auth.token.access_token') || '',
-              'Authorization': `Bearer ${localStorage.getItem('supabase.auth.token.access_token') || ''}`,
-            }
-          });
-          
-          if (!response.ok) {
-            statusDiv.innerHTML = `<div class="error">You must be logged in to use this tool. Please log in to your account first.</div>`;
-            fixRlsBtn.disabled = true;
-            return false;
-          }
-          
-          return true;
-        } catch (error) {
-          statusDiv.innerHTML = `<div class="error">Error checking authentication: ${error.message}</div>`;
-          fixRlsBtn.disabled = true;
-          return false;
-        }
-      };
+      if (!supabaseUrl || !serviceRoleKey) {
+        showStatus('Please enter both Supabase URL and service role key.', 'error');
+        return;
+      }
       
-      // Fix RLS policies
-      const fixRls = async () => {
-        try {
-          fixRlsBtn.disabled = true;
-          statusDiv.innerHTML = `<p>Updating RLS policies...</p>`;
-          
-          const response = await fetch('https://lwsesoxppmoerwwvvdar.functions.supabase.co/fix-rls', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('supabase.auth.token.access_token') || ''}`,
-            }
-          });
-          
-          const result = await response.json();
-          
-          if (response.ok) {
-            statusDiv.innerHTML = `
-              <div class="success">
-                <p>RLS policies updated successfully!</p>
-                <p>You should now be able to see properties that have been shared with you.</p>
-                <p>Please refresh the Properties page to see the changes.</p>
-              </div>
-              <h3>Response:</h3>
-              <pre>${JSON.stringify(result, null, 2)}</pre>
+      this.disabled = true;
+      showStatus('Connecting to Supabase...', '');
+      
+      try {
+        // Create Supabase client
+        const supabase = window.supabase.createClient(supabaseUrl, serviceRoleKey);
+        
+        showStatus('Fixing RLS policies...', '');
+        
+        // SQL to fix RLS policies
+        const sql = `
+          -- First, drop all existing policies
+          DROP POLICY IF EXISTS "Agents can see all properties they created" ON property_analyses;
+          DROP POLICY IF EXISTS "Allow public insert access" ON property_analyses;
+          DROP POLICY IF EXISTS "Allow public read access" ON property_analyses;
+          DROP POLICY IF EXISTS "Allow select for owners" ON property_analyses;
+          DROP POLICY IF EXISTS "Clients can see properties shared with them" ON property_analyses;
+          DROP POLICY IF EXISTS "Enable delete for property owners" ON property_analyses;
+          DROP POLICY IF EXISTS "Enable insert for authenticated users" ON property_analyses;
+          DROP POLICY IF EXISTS "Enable update for property owners" ON property_analyses;
+          DROP POLICY IF EXISTS "Users can create their own analyses" ON property_analyses;
+          DROP POLICY IF EXISTS "Users can delete own properties" ON property_analyses;
+          DROP POLICY IF EXISTS "Users can delete their own analyses" ON property_analyses;
+          DROP POLICY IF EXISTS "Users can insert own properties" ON property_analyses;
+          DROP POLICY IF EXISTS "Users can update own properties" ON property_analyses;
+          DROP POLICY IF EXISTS "Users can update their own analyses" ON property_analyses;
+          DROP POLICY IF EXISTS "Users can view own or shared properties" ON property_analyses;
+          DROP POLICY IF EXISTS "Users can view their own analyses" ON property_analyses;
+          DROP POLICY IF EXISTS "property_analyses_delete_policy" ON property_analyses;
+          DROP POLICY IF EXISTS "property_analyses_insert_policy" ON property_analyses;
+          DROP POLICY IF EXISTS "property_analyses_select_policy" ON property_analyses;
+          DROP POLICY IF EXISTS "property_analyses_update_policy" ON property_analyses;
+
+          -- Now create just the policies we need
+          -- 1. Policy for viewing properties (own or shared)
+          CREATE POLICY "Users can view own or shared properties"
+          ON property_analyses
+          FOR SELECT
+          TO authenticated
+          USING (
+            auth.uid() = user_id
+            OR
+            EXISTS (
+              SELECT 1 FROM property_shares
+              WHERE property_shares.property_id = property_analyses.id
+              AND property_shares.user_id = auth.uid()
+            )
+          );
+
+          -- 2. Policy for inserting properties (only own)
+          CREATE POLICY "Users can insert own properties"
+          ON property_analyses
+          FOR INSERT
+          TO authenticated
+          WITH CHECK (auth.uid() = user_id);
+
+          -- 3. Policy for updating properties (only own)
+          CREATE POLICY "Users can update own properties"
+          ON property_analyses
+          FOR UPDATE
+          TO authenticated
+          USING (auth.uid() = user_id);
+
+          -- 4. Policy for deleting properties (only own)
+          CREATE POLICY "Users can delete own properties"
+          ON property_analyses
+          FOR DELETE
+          TO authenticated
+          USING (auth.uid() = user_id);
+        `;
+        
+        // Execute SQL
+        const { error } = await supabase.rpc('exec_sql', { sql });
+        
+        if (error) {
+          if (error.message.includes('function "exec_sql" does not exist')) {
+            showStatus('Creating exec_sql function...', '');
+            
+            // Create exec_sql function
+            const createFunctionSql = `
+              CREATE OR REPLACE FUNCTION public.exec_sql(sql text)
+              RETURNS JSONB
+              LANGUAGE plpgsql
+              SECURITY DEFINER
+              AS $$
+              DECLARE
+                result JSONB;
+              BEGIN
+                EXECUTE sql INTO result;
+                RETURN result;
+              EXCEPTION WHEN OTHERS THEN
+                RETURN jsonb_build_object('error', SQLERRM);
+              END;
+              $$;
+              
+              -- Grant execute permission to authenticated users
+              GRANT EXECUTE ON FUNCTION public.exec_sql(text) TO authenticated;
             `;
+            
+            const { error: createFunctionError } = await supabase.rpc('exec_sql', { sql: createFunctionSql });
+            
+            if (createFunctionError) {
+              throw new Error(`Failed to create exec_sql function: ${createFunctionError.message}`);
+            }
+            
+            // Try again to execute the main SQL
+            const { error: retryError } = await supabase.rpc('exec_sql', { sql });
+            
+            if (retryError) {
+              throw new Error(`Failed to execute SQL after creating function: ${retryError.message}`);
+            }
           } else {
-            statusDiv.innerHTML = `
-              <div class="error">
-                <p>Failed to update RLS policies: ${result.error}</p>
-                <p>Details: ${JSON.stringify(result.details)}</p>
-              </div>
-            `;
+            throw new Error(`Failed to execute SQL: ${error.message}`);
           }
-        } catch (error) {
-          statusDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
-        } finally {
-          fixRlsBtn.disabled = false;
         }
-      };
-      
-      // Add event listener
-      fixRlsBtn.addEventListener('click', async () => {
-        const isAuthenticated = await checkAuth();
-        if (isAuthenticated) {
-          await fixRls();
-        }
-      });
-      
-      // Check auth on page load
-      checkAuth();
+        
+        showStatus('RLS policies fixed successfully! Your users should now be able to see both their own properties and properties shared with them.', 'success');
+      } catch (error) {
+        console.error('Error:', error);
+        showStatus(`Error: ${error.message}`, 'error');
+        
+        // Show alternative instructions
+        const statusDiv = document.getElementById('status');
+        statusDiv.innerHTML += `
+          <p>Please try running the SQL manually in the Supabase dashboard:</p>
+          <ol>
+            <li>Go to <a href="https://app.supabase.com" target="_blank">https://app.supabase.com</a></li>
+            <li>Select your project</li>
+            <li>Go to SQL Editor</li>
+            <li>Create a new query</li>
+            <li>Copy and paste the following SQL:</li>
+          </ol>
+          <pre>${sql}</pre>
+          <p>Click "Run" to execute the SQL.</p>
+        `;
+      } finally {
+        this.disabled = false;
+      }
     });
+    
+    function showStatus(message, type) {
+      const statusDiv = document.getElementById('status');
+      statusDiv.style.display = 'block';
+      statusDiv.className = 'status ' + type;
+      statusDiv.textContent = message;
+    }
   </script>
 </body>
 </html> 
