@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { debug, info, error as loggerError } from '@/lib/logger';
 
 export const Auth = () => {
   const [email, setEmail] = useState("");
@@ -22,17 +22,22 @@ export const Auth = () => {
     setLoading(true);
     
     try {
-      const { error } = await supabase.auth.signUp({
+      debug('[Auth] Attempting to sign up user:', email);
+      
+      // First try to sign up with the standard method
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             full_name: fullName,
           },
+          emailRedirectTo: `${window.location.origin}/auth`,
         },
       });
 
       if (error) {
+        loggerError('[Auth] Sign up error:', error);
         if (error.message.includes("User already registered")) {
           toast({
             variant: "destructive",
@@ -47,12 +52,54 @@ export const Auth = () => {
           });
         }
       } else {
-        toast({
-          title: "Success!",
-          description: "Account created successfully. You can now sign in.",
-        });
+        info('[Auth] Sign up successful for:', email);
+        
+        if (data?.user && !data.user.confirmed_at) {
+          // Try to sign in immediately to see if email confirmation is required
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+          
+          if (signInError && signInError.message.includes("Email not confirmed")) {
+            toast({
+              title: "Check Your Email",
+              description: "We've sent a confirmation link to your email. Please check your inbox and click the link to activate your account.",
+            });
+          } else if (!signInError) {
+            // Successfully signed in without email confirmation
+            toast({
+              title: "Success!",
+              description: "Account created and signed in successfully.",
+            });
+            navigate("/");
+          } else {
+            toast({
+              variant: "destructive",
+              title: "Error",
+              description: signInError.message,
+            });
+          }
+        } else {
+          // User is already confirmed
+          toast({
+            title: "Success!",
+            description: "Account created successfully. You can now sign in.",
+          });
+          
+          // Try to sign in automatically
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+          
+          if (!signInError) {
+            navigate("/");
+          }
+        }
       }
     } catch (err) {
+      loggerError('[Auth] Unexpected error during sign up:', err);
       toast({
         variant: "destructive",
         title: "Error",
