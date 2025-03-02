@@ -42,7 +42,7 @@ jobs:
         run: npm run build
         env:
           VITE_SUPABASE_URL: https://lwsesoxppmoerwwvvdar.supabase.co
-          VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx3c2Vzb3hwcG1vZXJ3d3Z2ZGFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDk1NTI1NzcsImV4cCI6MjAyNTEyODU3N30.Nh8F_3CXuqGAqpkQB-8Ky4Oi9Ry-4HMVGD5FgFmqrYo
+          VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx3c2Vzb3hwcG1vZXJ3d3Z2ZGFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTY2MzA0MDAsImV4cCI6MjAzMjIwNjQwMH0.Rl3aNnQzDWxQgU0Qi1uZiihSHKntkBeUQtJArVSA2wY
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
