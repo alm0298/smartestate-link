@@ -24,7 +24,6 @@ export const Auth = () => {
     try {
       debug('[Auth] Attempting to sign up user:', email);
       
-      // First try to sign up with the standard method
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -55,47 +54,15 @@ export const Auth = () => {
         info('[Auth] Sign up successful for:', email);
         
         if (data?.user && !data.user.confirmed_at) {
-          // Try to sign in immediately to see if email confirmation is required
-          const { error: signInError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
+          toast({
+            title: "Check Your Email",
+            description: "We've sent a confirmation link to your email. Please check your inbox and click the link to activate your account.",
           });
-          
-          if (signInError && signInError.message.includes("Email not confirmed")) {
-            toast({
-              title: "Check Your Email",
-              description: "We've sent a confirmation link to your email. Please check your inbox and click the link to activate your account.",
-            });
-          } else if (!signInError) {
-            // Successfully signed in without email confirmation
-            toast({
-              title: "Success!",
-              description: "Account created and signed in successfully.",
-            });
-            navigate("/");
-          } else {
-            toast({
-              variant: "destructive",
-              title: "Error",
-              description: signInError.message,
-            });
-          }
         } else {
-          // User is already confirmed
           toast({
             title: "Success!",
             description: "Account created successfully. You can now sign in.",
           });
-          
-          // Try to sign in automatically
-          const { error: signInError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-          
-          if (!signInError) {
-            navigate("/");
-          }
         }
       }
     } catch (err) {
