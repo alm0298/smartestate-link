@@ -56,17 +56,16 @@ export default defineConfig({
     assetsDir: 'assets',
     emptyOutDir: true,
     sourcemap: true,
-    minify: 'esbuild',
+    minify: 'terser',
     rollupOptions: {
-      input: {
-        main: path.resolve(__dirname, 'index.html'),
-        standalone: path.resolve(__dirname, 'standalone.html'),
-      },
       output: {
-        entryFileNames: 'assets/[name]-[hash].js',
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+        },
+        assetFileNames: 'assets/[name]-[hash][extname]',
         chunkFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]'
-      }
+        entryFileNames: 'assets/[name]-[hash].js',
+      },
     }
   },
   logLevel: 'info',
