@@ -19,7 +19,7 @@ const finalSupabaseUrl = isPlaceholder && import.meta.env.DEV
   : supabaseUrl;
 
 const finalSupabaseAnonKey = isPlaceholder && import.meta.env.DEV
-  ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx3c2Vzb3hwcG1vZXJ3d3Z2ZGFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTY2MzA0MDAsImV4cCI6MjAzMjIwNjQwMH0.Rl3aNnQzDWxQgU0Qi1uZiihSHKntkBeUQtJArVSA2wY'
+  ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx3c2Vzb3hwcG1vZXJ3d3Z2ZGFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk3ODY2NzgsImV4cCI6MjA1NTM2MjY3OH0.dAhb-hhKt74xLN1-PQzZFSpW38XE37q4Aw9ovO2x7o4'
   : supabaseAnonKey;
 
 // Check if we have valid values
