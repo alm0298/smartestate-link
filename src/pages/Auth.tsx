@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,11 +14,40 @@ export const Auth = () => {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [apiKeyValid, setApiKeyValid] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Check if the Supabase API key is valid on component mount
+  useEffect(() => {
+    const checkApiKey = async () => {
+      try {
+        const { error } = await supabase.auth.getSession();
+        if (error && error.message.includes("Invalid API key")) {
+          setApiKeyValid(false);
+          loggerError('[Auth] Invalid API key detected:', error);
+        }
+      } catch (err) {
+        loggerError('[Auth] Error checking API key:', err);
+        setApiKeyValid(false);
+      }
+    };
+    
+    checkApiKey();
+  }, []);
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!apiKeyValid) {
+      toast({
+        variant: "destructive",
+        title: "API Configuration Error",
+        description: "There's an issue with the API configuration. Please contact support.",
+      });
+      return;
+    }
+    
     setLoading(true);
     
     try {
@@ -42,6 +71,13 @@ export const Auth = () => {
             variant: "destructive",
             title: "Account Exists",
             description: "An account with this email already exists. Please sign in instead.",
+          });
+        } else if (error.message.includes("Invalid API key")) {
+          setApiKeyValid(false);
+          toast({
+            variant: "destructive",
+            title: "API Configuration Error",
+            description: "There's an issue with the API configuration. Please contact support.",
           });
         } else {
           toast({
@@ -79,6 +115,16 @@ export const Auth = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!apiKeyValid) {
+      toast({
+        variant: "destructive",
+        title: "API Configuration Error",
+        description: "There's an issue with the API configuration. Please contact support.",
+      });
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -100,6 +146,13 @@ export const Auth = () => {
             title: "Email Not Confirmed",
             description: "Please check your email for the confirmation link.",
           });
+        } else if (error.message.includes("Invalid API key")) {
+          setApiKeyValid(false);
+          toast({
+            variant: "destructive",
+            title: "API Configuration Error",
+            description: "There's an issue with the API configuration. Please contact support.",
+          });
         } else {
           toast({
             variant: "destructive",
@@ -120,6 +173,34 @@ export const Auth = () => {
       setLoading(false);
     }
   };
+
+  // If API key is invalid, show a friendly message
+  if (!apiKeyValid) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-50">
+        <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-md">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-900">Service Temporarily Unavailable</h2>
+            <p className="mt-2 text-gray-600">
+              We're experiencing some technical difficulties with our authentication service. 
+              Our team has been notified and is working to resolve this issue.
+            </p>
+          </div>
+          <div className="mt-6">
+            <Button 
+              className="w-full" 
+              onClick={() => window.location.reload()}
+            >
+              Try Again
+            </Button>
+          </div>
+          <div className="mt-4 text-center text-sm text-gray-500">
+            If this issue persists, please contact support.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
