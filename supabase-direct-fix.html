@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix SmartEstate RLS Policies</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #2563eb;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #1d4ed8;
+            margin-top: 30px;
+        }
+        pre {
+            background-color: #f1f5f9;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            border-left: 4px solid #3b82f6;
+        }
+        code {
+            font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+        }
+        .step {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .step-number {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            background-color: #2563eb;
+            color: white;
+            text-align: center;
+            line-height: 30px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        .copy-button {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            float: right;
+        }
+        .copy-button:hover {
+            background-color: #1d4ed8;
+        }
+        .success {
+            color: #047857;
+            font-weight: bold;
+        }
+        .warning {
+            color: #b45309;
+            font-weight: bold;
+        }
+        .important {
+            background-color: #fef2f2;
+            border-left: 4px solid #ef4444;
+            padding: 10px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Fix SmartEstate RLS Policies</h1>
+    
+    <div class="important">
+        <p><strong>Important:</strong> This page contains SQL commands to fix the Row Level Security (RLS) policies for your SmartEstate application. Follow these steps carefully to resolve your property sharing issues.</p>
+    </div>
+
+    <div class="step">
+        <span class="step-number">1</span>
+        <strong>Go to the Supabase Dashboard</strong>
+        <p>Open your Supabase project dashboard at <a href="https://app.supabase.com/" target="_blank">https://app.supabase.com/</a></p>
+    </div>
+
+    <div class="step">
+        <span class="step-number">2</span>
+        <strong>Navigate to the SQL Editor</strong>
+        <p>In the left sidebar, click on "SQL Editor"</p>
+    </div>
+
+    <div class="step">
+        <span class="step-number">3</span>
+        <strong>Create a New Query</strong>
+        <p>Click the "New Query" button to create a new SQL query</p>
+    </div>
+
+    <div class="step">
+        <span class="step-number">4</span>
+        <strong>Execute the SQL to Fix RLS Policies</strong>
+        <p>Copy and paste the following SQL into the editor and click "Run":</p>
+        <button class="copy-button" onclick="copyToClipboard('sql-fix')">Copy SQL</button>
+        <pre><code id="sql-fix">-- ESSENTIAL FIX FOR RLS POLICIES
+-- This script focuses only on the critical changes needed
+
+-- Ensure RLS is enabled on the property_analyses table
+ALTER TABLE property_analyses ENABLE ROW LEVEL SECURITY;
+
+-- Drop any problematic policies
+DROP POLICY IF EXISTS "view_shared_properties" ON property_analyses;
+DROP POLICY IF EXISTS "Users can view shared properties" ON property_analyses;
+DROP POLICY IF EXISTS "Users can view own or shared properties" ON property_analyses;
+DROP POLICY IF EXISTS "Select allowed for authenticated" ON property_analyses;
+DROP POLICY IF EXISTS "Users can view their own properties" ON property_analyses;
+
+-- Create policies for viewing properties (owned or shared)
+CREATE POLICY "Users can view their own properties"
+ON property_analyses
+FOR SELECT
+TO authenticated
+USING (
+    user_id = auth.uid()
+);
+
+CREATE POLICY "Users can view shared properties"
+ON property_analyses
+FOR SELECT
+TO authenticated
+USING (
+    EXISTS (
+        SELECT 1 
+        FROM property_shares 
+        WHERE 
+            property_shares.property_id = property_analyses.id 
+            AND property_shares.user_id = auth.uid()
+    )
+);
+
+-- Create policies for managing properties (insert, update, delete)
+CREATE POLICY "Users can insert their own properties"
+ON property_analyses
+FOR INSERT
+TO authenticated
+WITH CHECK (
+    user_id = auth.uid()
+);
+
+CREATE POLICY "Users can update their own properties"
+ON property_analyses
+FOR UPDATE
+TO authenticated
+USING (
+    user_id = auth.uid()
+);
+
+CREATE POLICY "Users can delete their own properties"
+ON property_analyses
+FOR DELETE
+TO authenticated
+USING (
+    user_id = auth.uid()
+);</code></pre>
+    </div>
+
+    <div class="step">
+        <span class="step-number">5</span>
+        <strong>Create a Test Share Between Users (Optional)</strong>
+        <p>If you want to test sharing a property, execute the following SQL (replace with your actual user IDs and property ID):</p>
+        <button class="copy-button" onclick="copyToClipboard('sql-share')">Copy SQL</button>
+        <pre><code id="sql-share">-- First let's see what users and properties we have
+SELECT id, email FROM auth.users ORDER BY created_at;
+SELECT id, address, user_id FROM property_analyses ORDER BY created_at DESC LIMIT 10;
+
+-- Create a test share between users
+-- Replace these with actual IDs from your database
+INSERT INTO property_shares (property_id, user_id)
+VALUES 
+    ('property-id-here', 'user-id-to-share-with-here');</code></pre>
+    </div>
+
+    <div class="step">
+        <span class="step-number">6</span>
+        <strong>Verify the RLS Policies</strong>
+        <p>Run this SQL to check that your policies are set up correctly:</p>
+        <button class="copy-button" onclick="copyToClipboard('sql-verify')">Copy SQL</button>
+        <pre><code id="sql-verify">-- Check that RLS is enabled
+SELECT 
+    relname AS table_name,
+    relrowsecurity AS rls_enabled
+FROM pg_class
+WHERE relname = 'property_analyses';
+
+-- Check all current policies
+SELECT 
+    schemaname, 
+    tablename, 
+    policyname, 
+    roles, 
+    cmd, 
+    qual
+FROM pg_policies 
+WHERE tablename = 'property_analyses';
+
+-- Check if there are any shared properties
+SELECT COUNT(*) FROM property_shares;
+
+-- Show the most recent shares
+SELECT * FROM property_shares ORDER BY created_at DESC LIMIT 5;</code></pre>
+    </div>
+
+    <h2>After Fixing</h2>
+    <p>After running these SQL commands:</p>
+    <ol>
+        <li>Go back to your SmartEstate application</li>
+        <li>Sign out and sign back in to refresh your session</li>
+        <li>You should now be able to see both your own properties and properties shared with you</li>
+    </ol>
+
+    <div class="important">
+        <p class="warning">Remember: For property sharing to work properly, the property must be shared with a user through the property_shares table, and the RLS policies must be correctly set up.</p>
+    </div>
+
+    <script>
+        function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            const textToCopy = element.textContent;
+            
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                const button = document.querySelector(`#${elementId}`).parentElement.querySelector('.copy-button');
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+            });
+        }
+    </script>
+</body>
+</html> 
