@@ -93,29 +93,29 @@ export const Properties = () => {
             pros,
             cons,
             summary,
-            score,
-            user_id
+            score
           `)
+          .eq('user_id', user.id)
           .order('created_at', { ascending: false });
         
         if (error) {
           loggerError('[Properties] Supabase error:', error);
-          loggerError('[Properties] Error fetching properties:', error.message);
-          loggerError('[Properties] Error details:', JSON.stringify(error));
           throw error;
         }
         
-        debug('[Properties] Successfully fetched properties:', {
+        info('[Properties] Properties fetched successfully:', {
           count: data?.length || 0,
-          properties: data
+          firstProperty: data?.[0]?.id
         });
         return data as unknown as Property[];
-      } catch (error) {
-        loggerError('[Properties] Error in queryFn:', error);
+      } catch (error: any) {
+        loggerError('[Properties] Error fetching properties:', error.message);
+        loggerError('[Properties] Error details:', error);
         throw error;
       }
     },
     enabled: !!user,
+    retry: 1,
   });
 
   const handlePropertyClick = (e: React.MouseEvent, propertyId: string) => {
