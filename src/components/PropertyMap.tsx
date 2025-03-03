@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { GoogleMap, useLoadScript, Marker } from "@react-google-maps/api";
+import { GoogleMap, useLoadScript } from "@react-google-maps/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,30 +18,43 @@ interface PropertyMapProps {
 
 const libraries: ("places")[] = ["places"];
 
-// Get API key with fallback message
-const getGoogleMapsApiKey = () => {
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-  // Check if API key is the placeholder value
-  if (!apiKey || apiKey === "your_google_maps_api_key") {
-    return "";  // Return empty for better error handling
-  }
-  return apiKey;
-};
-
 // Custom marker component that uses AdvancedMarkerElement
-const AdvancedMarker = ({ position, map }: { position: google.maps.LatLngLiteral; map?: google.maps.Map | null }) => {
+const AdvancedMarker = ({ position, map, draggable, onDragEnd }: { 
+  position: google.maps.LatLngLiteral; 
+  map?: google.maps.Map | null;
+  draggable?: boolean;
+  onDragEnd?: (position: google.maps.LatLngLiteral) => void;
+}) => {
   useEffect(() => {
-    if (!map) return;
+    if (!map || typeof google === 'undefined' || !google.maps?.marker) return;
 
-    const marker = new google.maps.marker.AdvancedMarkerElement({
-      position,
-      map
-    });
+    try {
+      const marker = new google.maps.marker.AdvancedMarkerElement({
+        position,
+        map,
+        gmpDraggable: !!draggable
+      });
 
-    return () => {
-      marker.map = null;
-    };
-  }, [map, position]);
+      if (draggable && onDragEnd) {
+        marker.addListener("dragend", () => {
+          if (marker.position) {
+            const pos = marker.position as google.maps.LatLng;
+            onDragEnd({
+              lat: pos.lat(),
+              lng: pos.lng()
+            });
+          }
+        });
+      }
+
+      return () => {
+        marker.map = null;
+      };
+    } catch (error) {
+      console.error("Error creating advanced marker:", error);
+      return () => {};
+    }
+  }, [map, position, draggable, onDragEnd]);
 
   return null;
 };
@@ -66,18 +79,18 @@ export const PropertyMap = ({
     lng: initialLng || -8.6291
   });
 
-  const apiKey = getGoogleMapsApiKey();
+  // Use script loader without API key since it's in index.html
   const { isLoaded, loadError } = useLoadScript({
-    googleMapsApiKey: apiKey,
+    googleMapsApiKey: "",
     libraries
   });
 
   const geocodeAddress = useCallback(async (address: string) => {
-    if (!apiKey) {
+    if (typeof google === 'undefined') {
       toast({
         variant: "destructive",
-        title: "Google Maps API Key Missing",
-        description: "Please configure a valid Google Maps API key in your .env file",
+        title: "Google Maps Not Loaded",
+        description: "Please check your internet connection and try again.",
       });
       return;
     }
@@ -100,7 +113,7 @@ export const PropertyMap = ({
         description: "Failed to find address. Please try again.",
       });
     }
-  }, [toast, apiKey]);
+  }, [toast]);
 
   const handleMapClick = (e: google.maps.MapMouseEvent) => {
     if (!isEditing || !e.latLng) return;
@@ -144,8 +157,7 @@ export const PropertyMap = ({
     }
   }, [isLoaded, address, initialLat, initialLng, geocodeAddress]);
 
-  // Show no API key warning
-  if (!apiKey) {
+  if (loadError) {
     return (
       <Card>
         <CardHeader>
@@ -157,10 +169,9 @@ export const PropertyMap = ({
         <CardContent>
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Google Maps API Key Missing</AlertTitle>
+            <AlertTitle>Google Maps Error</AlertTitle>
             <AlertDescription>
-              Please add a valid Google Maps API key to your <code>.env</code> file. 
-              Set the <code>VITE_GOOGLE_MAPS_API_KEY</code> variable with your API key.
+              {loadError.message}
             </AlertDescription>
           </Alert>
           <div className="mt-4">
@@ -206,16 +217,6 @@ export const PropertyMap = ({
             </div>
           )}
           
-          {loadError && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Error loading Google Maps</AlertTitle>
-              <AlertDescription>
-                {loadError.message}
-              </AlertDescription>
-            </Alert>
-          )}
-          
           {isLoaded ? (
             <div className="h-[400px] w-full">
               <GoogleMap
@@ -232,16 +233,12 @@ export const PropertyMap = ({
                 onLoad={setMap}
                 onUnmount={() => setMap(null)}
               >
-                <Marker
+                <AdvancedMarker 
                   position={markerPosition}
+                  map={map}
                   draggable={isEditing}
-                  onDragEnd={(e) => {
-                    if (e.latLng) {
-                      setMarkerPosition({
-                        lat: e.latLng.lat(),
-                        lng: e.latLng.lng()
-                      });
-                    }
+                  onDragEnd={(position) => {
+                    setMarkerPosition(position);
                   }}
                 />
               </GoogleMap>

@@ -2,102 +2,44 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/house-icon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SmartEstate Link</title>
-    <meta name="description" content="Property management and analysis tool" />
-    <meta name="author" content="SmartEstate" />
-    <meta property="og:image" content="/smartestate-link/og-image.png" />
+    <title>SmartEstate - AI-Powered Property Analysis</title>
+    <meta name="description" content="AI-powered property analysis to help you make smarter real estate investment decisions.">
     
-    <!-- Start Single Page Apps for GitHub Pages -->
-    <script type="text/javascript">
-      // Single Page Apps for GitHub Pages
-      // MIT License
-      // https://github.com/rafgraph/spa-github-pages
-      (function(l) {
-        if (l.search[1] === '/' ) {
-          var decoded = l.search.slice(1).split('&').map(function(s) { 
-            return s.replace(/~and~/g, '&')
-          }).join('?');
-          window.history.replaceState(null, null,
-              l.pathname.slice(0, -1) + decoded + l.hash
-          );
-        }
-      }(window.location))
-    </script>
-    <!-- End Single Page Apps for GitHub Pages -->
-    <style>
-      /* Fallback styles in case the app doesn't load */
-      body {
-        font-family: Arial, sans-serif;
-        margin: 0;
-        padding: 20px;
-        line-height: 1.6;
-      }
-      .container {
-        max-width: 800px;
-        margin: 0 auto;
-        padding: 20px;
-        border: 1px solid #ddd;
-        border-radius: 5px;
-      }
-      h1 {
-        color: #333;
-      }
-      .error {
-        color: red;
-        font-weight: bold;
-      }
-      .success {
-        color: green;
-        font-weight: bold;
-      }
-    </style>
-  </head>
+    <!-- Add Google Maps Script directly -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBMD21JpmlHER62PCuJMztk8qJrYbNfAKc&libraries=places,geocoding" async defer></script>
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://smartestate.ai/">
+    <meta property="og:title" content="SmartEstate - AI-Powered Property Analysis">
+    <meta property="og:description" content="AI-powered property analysis to help you make smarter real estate investment decisions.">
+    <meta property="og:image" content="/og-image.jpg">
 
-  <body>
-    <div id="root">
-      <div class="container">
-        <h1>SmartEstate Link</h1>
-        <p>Loading application...</p>
-        <p>If you see this message for more than a few seconds, there might be an issue loading the application.</p>
-      </div>
-    </div>
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://smartestate.ai/">
+    <meta property="twitter:title" content="SmartEstate - AI-Powered Property Analysis">
+    <meta property="twitter:description" content="AI-powered property analysis to help you make smarter real estate investment decisions.">
+    <meta property="twitter:image" content="/og-image.jpg">
     
-    <script type="module" src="./src/main.tsx"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
+    <!-- Analytics (placeholder) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
     <script>
-      console.log('Initial page load at:', new Date().toISOString());
-      console.log('User agent:', navigator.userAgent);
-      console.log('Base URL:', window.location.href);
-      
-      // This script will be used as a fallback if the main app fails to load
-      window.addEventListener('load', function() {
-        // Check if the app has loaded after 3 seconds
-        setTimeout(function() {
-          const rootElement = document.getElementById('root');
-          // If the root element still contains our loading message, the app didn't load
-          if (rootElement && rootElement.innerHTML.includes('Loading application...')) {
-            console.error('Application failed to load within timeout period');
-            
-            // Create a button to try loading the standalone version
-            const fallbackButton = document.createElement('button');
-            fallbackButton.textContent = 'Load Simplified Version';
-            fallbackButton.style.padding = '10px 20px';
-            fallbackButton.style.backgroundColor = '#4CAF50';
-            fallbackButton.style.color = 'white';
-            fallbackButton.style.border = 'none';
-            fallbackButton.style.borderRadius = '4px';
-            fallbackButton.style.cursor = 'pointer';
-            fallbackButton.style.marginTop = '20px';
-            
-            fallbackButton.onclick = function() {
-              window.location.href = 'standalone.html';
-            };
-            
-            rootElement.querySelector('.container').appendChild(fallbackButton);
-          }
-        }, 3000);
-      });
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-XXXXXXXXXX');
     </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
