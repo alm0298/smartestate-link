@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Supabase Connection Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .container {
+      border: 1px solid #ddd;
+      padding: 20px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+    h1, h2 {
+      color: #333;
+    }
+    .success {
+      color: green;
+      font-weight: bold;
+    }
+    .error {
+      color: red;
+      font-weight: bold;
+    }
+    pre {
+      background-color: #f5f5f5;
+      padding: 10px;
+      border-radius: 5px;
+      overflow-x: auto;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 8px;
+      margin: 5px 0 15px 0;
+      display: inline-block;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+<body>
+  <h1>Supabase Connection Test</h1>
+  
+  <div class="container">
+    <h2>1. Initialize Supabase Client</h2>
+    <div>
+      <label for="supabase-url">Supabase URL:</label>
+      <input type="text" id="supabase-url" value="https://lwsesoxppmoerwwvvdar.supabase.co">
+    </div>
+    <div>
+      <label for="supabase-key">Supabase Anon Key:</label>
+      <input type="text" id="supabase-key" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx3c2Vzb3hwcG1vZXJ3d3Z2ZGFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk3ODY2NzgsImV4cCI6MjA1NTM2MjY3OH0.dAhb-hhKt74xLN1-PQzZFSpW38XE37q4Aw9ovO2x7o4">
+    </div>
+    <button id="init-client">Initialize Client</button>
+    <div id="init-result"></div>
+  </div>
+  
+  <div class="container">
+    <h2>2. Test Connection</h2>
+    <button id="test-connection">Test Connection</button>
+    <div id="connection-result"></div>
+  </div>
+  
+  <div class="container">
+    <h2>3. Get Session</h2>
+    <button id="get-session">Get Session</button>
+    <div id="session-result"></div>
+  </div>
+  
+  <div class="container">
+    <h2>4. JWT Decode</h2>
+    <textarea id="jwt-input" rows="5" placeholder="Paste JWT token here"></textarea>
+    <button id="decode-jwt">Decode JWT</button>
+    <div id="jwt-result"></div>
+  </div>
+
+  <!-- Load Supabase JS from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <script>
+    let supabase = null;
+
+    // Initialize client
+    document.getElementById('init-client').addEventListener('click', async () => {
+      const url = document.getElementById('supabase-url').value;
+      const key = document.getElementById('supabase-key').value;
+      
+      if (!url || !key) {
+        document.getElementById('init-result').innerHTML = '<div class="error">Please provide both URL and key</div>';
+        return;
+      }
+      
+      try {
+        console.log('Initializing Supabase client with:', { url, key: key.substring(0, 10) + '...' });
+        supabase = window.supabase.createClient(url, key);
+        document.getElementById('init-result').innerHTML = '<div class="success">Client initialized successfully</div>';
+      } catch (error) {
+        console.error('Initialization error:', error);
+        document.getElementById('init-result').innerHTML = `<div class="error">Error: ${error.message}</div>`;
+      }
+    });
+
+    // Test connection
+    document.getElementById('test-connection').addEventListener('click', async () => {
+      if (!supabase) {
+        document.getElementById('connection-result').innerHTML = '<div class="error">Please initialize the client first</div>';
+        return;
+      }
+      
+      try {
+        console.log('Testing connection...');
+        // Try to fetch something simple from public schema
+        const { data, error } = await supabase.from('profiles').select('count').limit(1);
+        
+        if (error) throw error;
+        
+        document.getElementById('connection-result').innerHTML = `
+          <div class="success">Connection successful</div>
+          <pre>${JSON.stringify(data, null, 2)}</pre>
+        `;
+      } catch (error) {
+        console.error('Connection test error:', error);
+        document.getElementById('connection-result').innerHTML = `<div class="error">Error: ${error.message}</div>`;
+      }
+    });
+
+    // Get Session
+    document.getElementById('get-session').addEventListener('click', async () => {
+      if (!supabase) {
+        document.getElementById('session-result').innerHTML = '<div class="error">Please initialize the client first</div>';
+        return;
+      }
+      
+      try {
+        console.log('Getting session...');
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error) throw error;
+        
+        document.getElementById('session-result').innerHTML = `
+          <div class="success">Session retrieved</div>
+          <pre>${JSON.stringify(data, null, 2)}</pre>
+        `;
+      } catch (error) {
+        console.error('Session error:', error);
+        document.getElementById('session-result').innerHTML = `<div class="error">Error: ${error.message}</div>`;
+      }
+    });
+
+    // Decode JWT
+    document.getElementById('decode-jwt').addEventListener('click', () => {
+      const jwt = document.getElementById('jwt-input').value.trim();
+      
+      if (!jwt) {
+        document.getElementById('jwt-result').innerHTML = '<div class="error">Please provide a JWT token</div>';
+        return;
+      }
+      
+      try {
+        // Simple JWT decoding (without validation)
+        const parts = jwt.split('.');
+        if (parts.length !== 3) {
+          throw new Error('Invalid JWT format');
+        }
+        
+        const header = JSON.parse(atob(parts[0]));
+        const payload = JSON.parse(atob(parts[1]));
+        
+        document.getElementById('jwt-result').innerHTML = `
+          <h3>Header</h3>
+          <pre>${JSON.stringify(header, null, 2)}</pre>
+          <h3>Payload</h3>
+          <pre>${JSON.stringify(payload, null, 2)}</pre>
+        `;
+      } catch (error) {
+        console.error('JWT decode error:', error);
+        document.getElementById('jwt-result').innerHTML = `<div class="error">Error: ${error.message}</div>`;
+      }
+    });
+
+    // Auto-populate JWT input with the current key
+    document.getElementById('init-client').addEventListener('click', () => {
+      const key = document.getElementById('supabase-key').value;
+      document.getElementById('jwt-input').value = key;
+    });
+  </script>
+</body>
+</html> 

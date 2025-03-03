@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Supabase Auth Test</title>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .card {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    button {
+      background-color: #4f46e5;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #4338ca;
+    }
+    pre {
+      background-color: #f5f5f5;
+      padding: 10px;
+      border-radius: 4px;
+      overflow: auto;
+    }
+    .error {
+      color: #ef4444;
+      margin-top: 5px;
+    }
+    .success {
+      color: #10b981;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Supabase Auth Test</h1>
+  
+  <div class="card">
+    <h2>1. Initialize Supabase Client</h2>
+    <div class="form-group">
+      <label for="supabase-url">Supabase URL</label>
+      <input type="text" id="supabase-url" placeholder="https://your-project.supabase.co">
+    </div>
+    <div class="form-group">
+      <label for="supabase-key">Supabase Anon Key</label>
+      <input type="text" id="supabase-key" placeholder="your-anon-key">
+    </div>
+    <button id="init-client">Initialize Client</button>
+    <div id="init-result"></div>
+  </div>
+
+  <div class="card">
+    <h2>2. Sign Up</h2>
+    <div class="form-group">
+      <label for="signup-email">Email</label>
+      <input type="email" id="signup-email" placeholder="user@example.com">
+    </div>
+    <div class="form-group">
+      <label for="signup-password">Password</label>
+      <input type="password" id="signup-password" placeholder="password">
+    </div>
+    <button id="signup-button">Sign Up</button>
+    <div id="signup-result"></div>
+  </div>
+
+  <div class="card">
+    <h2>3. Sign In</h2>
+    <div class="form-group">
+      <label for="signin-email">Email</label>
+      <input type="email" id="signin-email" placeholder="user@example.com">
+    </div>
+    <div class="form-group">
+      <label for="signin-password">Password</label>
+      <input type="password" id="signin-password" placeholder="password">
+    </div>
+    <button id="signin-button">Sign In</button>
+    <div id="signin-result"></div>
+  </div>
+
+  <div class="card">
+    <h2>4. Get Session</h2>
+    <button id="get-session">Get Current Session</button>
+    <div id="session-result"></div>
+  </div>
+
+  <div class="card">
+    <h2>5. Sign Out</h2>
+    <button id="signout-button">Sign Out</button>
+    <div id="signout-result"></div>
+  </div>
+
+  <script>
+    let supabase = null;
+
+    // Initialize client
+    document.getElementById('init-client').addEventListener('click', async () => {
+      const url = document.getElementById('supabase-url').value;
+      const key = document.getElementById('supabase-key').value;
+      
+      if (!url || !key) {
+        document.getElementById('init-result').innerHTML = '<div class="error">Please provide both URL and key</div>';
+        return;
+      }
+      
+      try {
+        supabase = window.supabase.createClient(url, key);
+        document.getElementById('init-result').innerHTML = '<div class="success">Client initialized successfully</div>';
+      } catch (error) {
+        document.getElementById('init-result').innerHTML = `<div class="error">Error: ${error.message}</div>`;
+      }
+    });
+
+    // Sign Up
+    document.getElementById('signup-button').addEventListener('click', async () => {
+      if (!supabase) {
+        document.getElementById('signup-result').innerHTML = '<div class="error">Please initialize the client first</div>';
+        return;
+      }
+      
+      const email = document.getElementById('signup-email').value;
+      const password = document.getElementById('signup-password').value;
+      
+      try {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+        
+        if (error) throw error;
+        
+        document.getElementById('signup-result').innerHTML = `
+          <div class="success">Sign up successful</div>
+          <pre>${JSON.stringify(data, null, 2)}</pre>
+        `;
+      } catch (error) {
+        document.getElementById('signup-result').innerHTML = `<div class="error">Error: ${error.message}</div>`;
+      }
+    });
+
+    // Sign In
+    document.getElementById('signin-button').addEventListener('click', async () => {
+      if (!supabase) {
+        document.getElementById('signin-result').innerHTML = '<div class="error">Please initialize the client first</div>';
+        return;
+      }
+      
+      const email = document.getElementById('signin-email').value;
+      const password = document.getElementById('signin-password').value;
+      
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        
+        if (error) throw error;
+        
+        document.getElementById('signin-result').innerHTML = `
+          <div class="success">Sign in successful</div>
+          <pre>${JSON.stringify(data, null, 2)}</pre>
+        `;
+      } catch (error) {
+        document.getElementById('signin-result').innerHTML = `<div class="error">Error: ${error.message}</div>`;
+      }
+    });
+
+    // Get Session
+    document.getElementById('get-session').addEventListener('click', async () => {
+      if (!supabase) {
+        document.getElementById('session-result').innerHTML = '<div class="error">Please initialize the client first</div>';
+        return;
+      }
+      
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error) throw error;
+        
+        document.getElementById('session-result').innerHTML = `
+          <div class="success">Session retrieved</div>
+          <pre>${JSON.stringify(data, null, 2)}</pre>
+        `;
+      } catch (error) {
+        document.getElementById('session-result').innerHTML = `<div class="error">Error: ${error.message}</div>`;
+      }
+    });
+
+    // Sign Out
+    document.getElementById('signout-button').addEventListener('click', async () => {
+      if (!supabase) {
+        document.getElementById('signout-result').innerHTML = '<div class="error">Please initialize the client first</div>';
+        return;
+      }
+      
+      try {
+        const { error } = await supabase.auth.signOut();
+        
+        if (error) throw error;
+        
+        document.getElementById('signout-result').innerHTML = `<div class="success">Signed out successfully</div>`;
+      } catch (error) {
+        document.getElementById('signout-result').innerHTML = `<div class="error">Error: ${error.message}</div>`;
+      }
+    });
+  </script>
+</body>
+</html> 

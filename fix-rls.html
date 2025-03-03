@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fix RLS Policies</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    h1 {
+      color: #333;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 10px;
+    }
+    .card {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      background-color: #f9f9f9;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 16px;
+      margin: 4px 2px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+    .input-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .status {
+      margin-top: 20px;
+      padding: 10px;
+      border-radius: 4px;
+    }
+    .success {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .error {
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    pre {
+      background-color: #f5f5f5;
+      padding: 10px;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>Fix RLS Policies</h1>
+  
+  <div class="card">
+    <h2>Instructions</h2>
+    <p>This tool will fix the Row Level Security (RLS) policies for your property_analyses table to allow users to view both their own properties and properties shared with them.</p>
+    <p>You'll need to enter your Supabase URL and service role key from your Supabase dashboard:</p>
+    <ol>
+      <li>Go to <a href="https://app.supabase.com" target="_blank">https://app.supabase.com</a></li>
+      <li>Select your project</li>
+      <li>Go to Project Settings > API</li>
+      <li>Copy the URL and service role key</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <div class="input-group">
+      <label for="supabaseUrl">Supabase URL:</label>
+      <input type="text" id="supabaseUrl" placeholder="https://your-project.supabase.co">
+    </div>
+    
+    <div class="input-group">
+      <label for="serviceRoleKey">Service Role Key:</label>
+      <input type="password" id="serviceRoleKey" placeholder="your-service-role-key">
+    </div>
+    
+    <button id="fixButton">Fix RLS Policies</button>
+  </div>
+  
+  <div id="status" style="display: none;"></div>
+  
+  <script>
+    document.getElementById('fixButton').addEventListener('click', async function() {
+      const supabaseUrl = document.getElementById('supabaseUrl').value.trim();
+      const serviceRoleKey = document.getElementById('serviceRoleKey').value.trim();
+      
+      if (!supabaseUrl || !serviceRoleKey) {
+        showStatus('Please enter both Supabase URL and service role key.', 'error');
+        return;
+      }
+      
+      this.disabled = true;
+      showStatus('Connecting to Supabase...', '');
+      
+      try {
+        // Create Supabase client
+        const supabase = window.supabase.createClient(supabaseUrl, serviceRoleKey);
+        
+        showStatus('Fixing RLS policies...', '');
+        
+        // SQL to fix RLS policies
+        const sql = `
+          -- First, drop all existing policies
+          DROP POLICY IF EXISTS "Agents can see all properties they created" ON property_analyses;
+          DROP POLICY IF EXISTS "Allow public insert access" ON property_analyses;
+          DROP POLICY IF EXISTS "Allow public read access" ON property_analyses;
+          DROP POLICY IF EXISTS "Allow select for owners" ON property_analyses;
+          DROP POLICY IF EXISTS "Clients can see properties shared with them" ON property_analyses;
+          DROP POLICY IF EXISTS "Enable delete for property owners" ON property_analyses;
+          DROP POLICY IF EXISTS "Enable insert for authenticated users" ON property_analyses;
+          DROP POLICY IF EXISTS "Enable update for property owners" ON property_analyses;
+          DROP POLICY IF EXISTS "Users can create their own analyses" ON property_analyses;
+          DROP POLICY IF EXISTS "Users can delete own properties" ON property_analyses;
+          DROP POLICY IF EXISTS "Users can delete their own analyses" ON property_analyses;
+          DROP POLICY IF EXISTS "Users can insert own properties" ON property_analyses;
+          DROP POLICY IF EXISTS "Users can update own properties" ON property_analyses;
+          DROP POLICY IF EXISTS "Users can update their own analyses" ON property_analyses;
+          DROP POLICY IF EXISTS "Users can view own or shared properties" ON property_analyses;
+          DROP POLICY IF EXISTS "Users can view their own analyses" ON property_analyses;
+          DROP POLICY IF EXISTS "property_analyses_delete_policy" ON property_analyses;
+          DROP POLICY IF EXISTS "property_analyses_insert_policy" ON property_analyses;
+          DROP POLICY IF EXISTS "property_analyses_select_policy" ON property_analyses;
+          DROP POLICY IF EXISTS "property_analyses_update_policy" ON property_analyses;
+
+          -- Now create just the policies we need
+          -- 1. Policy for viewing properties (own or shared)
+          CREATE POLICY "Users can view own or shared properties"
+          ON property_analyses
+          FOR SELECT
+          TO authenticated
+          USING (
+            auth.uid() = user_id
+            OR
+            EXISTS (
+              SELECT 1 FROM property_shares
+              WHERE property_shares.property_id = property_analyses.id
+              AND property_shares.user_id = auth.uid()
+            )
+          );
+
+          -- 2. Policy for inserting properties (only own)
+          CREATE POLICY "Users can insert own properties"
+          ON property_analyses
+          FOR INSERT
+          TO authenticated
+          WITH CHECK (auth.uid() = user_id);
+
+          -- 3. Policy for updating properties (only own)
+          CREATE POLICY "Users can update own properties"
+          ON property_analyses
+          FOR UPDATE
+          TO authenticated
+          USING (auth.uid() = user_id);
+
+          -- 4. Policy for deleting properties (only own)
+          CREATE POLICY "Users can delete own properties"
+          ON property_analyses
+          FOR DELETE
+          TO authenticated
+          USING (auth.uid() = user_id);
+        `;
+        
+        // Execute SQL
+        const { error } = await supabase.rpc('exec_sql', { sql });
+        
+        if (error) {
+          if (error.message.includes('function "exec_sql" does not exist')) {
+            showStatus('Creating exec_sql function...', '');
+            
+            // Create exec_sql function
+            const createFunctionSql = `
+              CREATE OR REPLACE FUNCTION public.exec_sql(sql text)
+              RETURNS JSONB
+              LANGUAGE plpgsql
+              SECURITY DEFINER
+              AS $$
+              DECLARE
+                result JSONB;
+              BEGIN
+                EXECUTE sql INTO result;
+                RETURN result;
+              EXCEPTION WHEN OTHERS THEN
+                RETURN jsonb_build_object('error', SQLERRM);
+              END;
+              $$;
+              
+              -- Grant execute permission to authenticated users
+              GRANT EXECUTE ON FUNCTION public.exec_sql(text) TO authenticated;
+            `;
+            
+            const { error: createFunctionError } = await supabase.rpc('exec_sql', { sql: createFunctionSql });
+            
+            if (createFunctionError) {
+              throw new Error(`Failed to create exec_sql function: ${createFunctionError.message}`);
+            }
+            
+            // Try again to execute the main SQL
+            const { error: retryError } = await supabase.rpc('exec_sql', { sql });
+            
+            if (retryError) {
+              throw new Error(`Failed to execute SQL after creating function: ${retryError.message}`);
+            }
+          } else {
+            throw new Error(`Failed to execute SQL: ${error.message}`);
+          }
+        }
+        
+        showStatus('RLS policies fixed successfully! Your users should now be able to see both their own properties and properties shared with them.', 'success');
+      } catch (error) {
+        console.error('Error:', error);
+        showStatus(`Error: ${error.message}`, 'error');
+        
+        // Show alternative instructions
+        const statusDiv = document.getElementById('status');
+        statusDiv.innerHTML += `
+          <p>Please try running the SQL manually in the Supabase dashboard:</p>
+          <ol>
+            <li>Go to <a href="https://app.supabase.com" target="_blank">https://app.supabase.com</a></li>
+            <li>Select your project</li>
+            <li>Go to SQL Editor</li>
+            <li>Create a new query</li>
+            <li>Copy and paste the following SQL:</li>
+          </ol>
+          <pre>${sql}</pre>
+          <p>Click "Run" to execute the SQL.</p>
+        `;
+      } finally {
+        this.disabled = false;
+      }
+    });
+    
+    function showStatus(message, type) {
+      const statusDiv = document.getElementById('status');
+      statusDiv.style.display = 'block';
+      statusDiv.className = 'status ' + type;
+      statusDiv.textContent = message;
+    }
+  </script>
+</body>
+</html> 
