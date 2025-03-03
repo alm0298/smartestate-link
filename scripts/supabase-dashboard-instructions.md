@@ -1,6 +1,21 @@
--- RLS Policies for property_analyses table
--- Run this script in the Supabase SQL Editor
+# Updating RLS Policies in Supabase Dashboard
 
+Follow these steps to update your Row Level Security (RLS) policies for the `property_analyses` table:
+
+## Step 1: Access the Supabase Dashboard
+
+1. Go to https://app.supabase.com
+2. Sign in to your account
+3. Select your project
+
+## Step 2: Navigate to the SQL Editor
+
+1. In the left sidebar, click on "SQL Editor"
+2. Click "New Query" to create a new SQL query
+
+## Step 3: Copy and Paste the Following SQL
+
+```sql
 -- First, drop all existing policies
 DROP POLICY IF EXISTS "Agents can see all properties they created" ON property_analyses;
 DROP POLICY IF EXISTS "Allow public insert access" ON property_analyses;
@@ -59,6 +74,32 @@ ON property_analyses
 FOR DELETE
 TO authenticated
 USING (auth.uid() = user_id);
+```
 
--- Verify the policies were created
-SELECT * FROM pg_policies WHERE tablename = 'property_analyses'; 
+## Step 4: Execute the SQL
+
+1. Click the "Run" button to execute the SQL
+2. You should see a success message indicating that the commands were executed successfully
+
+## Step 5: Verify the Policies
+
+1. In the left sidebar, click on "Table Editor"
+2. Find and select the `property_analyses` table
+3. Click on "Policies" in the top navigation
+4. You should see the following policies:
+   - "Users can view own or shared properties" (for SELECT)
+   - "Users can insert own properties" (for INSERT)
+   - "Users can update own properties" (for UPDATE)
+   - "Users can delete own properties" (for DELETE)
+
+## What This Does
+
+This SQL script:
+
+1. Removes all existing RLS policies for the `property_analyses` table to avoid conflicts
+2. Creates a new policy that allows users to view:
+   - Properties they own (where `user_id = auth.uid()`)
+   - Properties shared with them (via the `property_shares` table)
+3. Creates policies that allow users to insert, update, and delete only their own properties
+
+After applying these changes, users should be able to see both their own properties and properties that have been shared with them. 

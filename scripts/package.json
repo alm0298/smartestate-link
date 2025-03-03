@@ -1,0 +1,10 @@
+{
+  "name": "smartestate-scripts",
+  "version": "1.0.0",
+  "description": "Scripts for SmartEstate project",
+  "type": "commonjs",
+  "private": true,
+  "dependencies": {
+    "@supabase/supabase-js": "^2.38.4"
+  }
+} 

@@ -1,6 +1,3 @@
--- RLS Policies for property_analyses table
--- Run this script in the Supabase SQL Editor
-
 -- First, drop all existing policies
 DROP POLICY IF EXISTS "Agents can see all properties they created" ON property_analyses;
 DROP POLICY IF EXISTS "Allow public insert access" ON property_analyses;
@@ -58,7 +55,4 @@ CREATE POLICY "Users can delete own properties"
 ON property_analyses
 FOR DELETE
 TO authenticated
-USING (auth.uid() = user_id);
-
--- Verify the policies were created
-SELECT * FROM pg_policies WHERE tablename = 'property_analyses'; 
+USING (auth.uid() = user_id); 

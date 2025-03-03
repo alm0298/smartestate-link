@@ -1,6 +1,36 @@
--- RLS Policies for property_analyses table
--- Run this script in the Supabase SQL Editor
+-- Check property_analyses table
+SELECT COUNT(*) AS total_properties FROM property_analyses;
 
+-- Show all properties
+SELECT id, user_id, address, created_at FROM property_analyses ORDER BY created_at DESC;
+
+-- Check property_shares table
+SELECT COUNT(*) AS total_shares FROM property_shares;
+
+-- Show all property shares
+SELECT id, property_id, user_id, created_at FROM property_shares ORDER BY created_at DESC;
+
+-- Show properties with shares
+SELECT 
+  p.id AS property_id, 
+  p.address, 
+  p.user_id AS owner_id,
+  COUNT(ps.id) AS share_count,
+  array_agg(ps.user_id) AS shared_with_users
+FROM 
+  property_analyses p
+JOIN 
+  property_shares ps ON p.id = ps.property_id
+GROUP BY 
+  p.id, p.address, p.user_id
+ORDER BY 
+  share_count DESC;
+
+-- Check RLS policies
+SELECT * FROM pg_policies WHERE tablename = 'property_analyses';
+
+-- Clean up RLS policies (run this if you want to remove all policies and create clean ones)
+/*
 -- First, drop all existing policies
 DROP POLICY IF EXISTS "Agents can see all properties they created" ON property_analyses;
 DROP POLICY IF EXISTS "Allow public insert access" ON property_analyses;
@@ -59,6 +89,4 @@ ON property_analyses
 FOR DELETE
 TO authenticated
 USING (auth.uid() = user_id);
-
--- Verify the policies were created
-SELECT * FROM pg_policies WHERE tablename = 'property_analyses'; 
+*/ 
