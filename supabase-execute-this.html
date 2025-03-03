@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Execute This SQL in Supabase</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.5;
+            color: #333;
+        }
+        h1 {
+            color: #3182ce;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+        pre {
+            background-color: #f7fafc;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            border-left: 3px solid #3182ce;
+            margin: 20px 0;
+        }
+        code {
+            font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+        }
+        .step {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8fafc;
+            border-radius: 5px;
+            border: 1px solid #e2e8f0;
+        }
+        .step h3 {
+            margin-top: 0;
+            color: #2c5282;
+        }
+        .important {
+            color: #e53e3e;
+            font-weight: bold;
+        }
+        button {
+            background-color: #3182ce;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        button:hover {
+            background-color: #2c5282;
+        }
+    </style>
+</head>
+<body>
+    <h1>Fix SmartEstate RLS Policies</h1>
+    
+    <div class="step">
+        <h3>Step 1: Go to Supabase SQL Editor</h3>
+        <p>Login to <a href="https://app.supabase.com/" target="_blank">Supabase Dashboard</a>, select your project, and go to the SQL Editor in the left sidebar.</p>
+    </div>
+    
+    <div class="step">
+        <h3>Step 2: Create a New Query</h3>
+        <p>Click the "New Query" button in the SQL Editor.</p>
+    </div>
+    
+    <div class="step">
+        <h3>Step 3: Paste and Execute This SQL</h3>
+        <p>Copy all of the following SQL and paste it into the SQL editor, then click "Run".</p>
+        <button onclick="copySQL()">Copy SQL to Clipboard</button>
+        <pre><code id="sqlCode">-- Script to bypass RLS and allow all users to view all properties
+
+-- Drop existing RLS policies that may interfere
+DROP POLICY IF EXISTS "view_shared_properties" ON property_analyses;
+DROP POLICY IF EXISTS "Users can view shared properties" ON property_analyses;
+DROP POLICY IF EXISTS "Users can view own or shared properties" ON property_analyses;
+DROP POLICY IF EXISTS "Select allowed for authenticated" ON property_analyses;
+DROP POLICY IF EXISTS "Users can view their own properties" ON property_analyses;
+DROP POLICY IF EXISTS "All users can view all properties" ON property_analyses;
+
+-- Ensure RLS is enabled
+ALTER TABLE property_analyses ENABLE ROW LEVEL SECURITY;
+
+-- Create a policy that allows ALL authenticated users to view ALL properties
+CREATE POLICY "All users can view all properties"
+ON property_analyses
+FOR SELECT
+TO authenticated
+USING (true);
+
+-- Create policies for managing properties - only owners can modify their own
+CREATE POLICY "Users can insert their own properties"
+ON property_analyses
+FOR INSERT
+TO authenticated
+WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users can update their own properties"
+ON property_analyses
+FOR UPDATE
+TO authenticated
+USING (user_id = auth.uid());
+
+CREATE POLICY "Users can delete their own properties"
+ON property_analyses
+FOR DELETE
+TO authenticated
+USING (user_id = auth.uid());</code></pre>
+    </div>
+    
+    <div class="step">
+        <h3>Step 4: Verify the Changes</h3>
+        <p>After running the SQL, run this additional query to verify that the policies were set correctly:</p>
+        <button onclick="copyVerificationSQL()">Copy Verification SQL</button>
+        <pre><code id="verificationCode">-- Verify that the policies are correctly set
+SELECT 
+    schemaname, 
+    tablename, 
+    policyname, 
+    roles, 
+    cmd, 
+    qual
+FROM pg_policies 
+WHERE tablename = 'property_analyses';</code></pre>
+    </div>
+    
+    <div class="step">
+        <h3>Step 5: Test the Application</h3>
+        <p>Return to your application at <a href="https://alm0298.github.io/smartestate-link/" target="_blank">https://alm0298.github.io/smartestate-link/</a></p>
+        <p><span class="important">Important:</span> Sign out and sign back in with the shai.yag@gmail.com user to see if they can now view all properties.</p>
+    </div>
+
+    <script>
+        function copySQL() {
+            const sqlText = document.getElementById('sqlCode').textContent;
+            navigator.clipboard.writeText(sqlText).then(() => {
+                alert('SQL copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+            });
+        }
+        
+        function copyVerificationSQL() {
+            const verificationText = document.getElementById('verificationCode').textContent;
+            navigator.clipboard.writeText(verificationText).then(() => {
+                alert('Verification SQL copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+            });
+        }
+    </script>
+</body>
+</html> 
