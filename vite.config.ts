@@ -38,13 +38,30 @@ const loggingPlugin = () => ({
   },
 });
 
+// Environment variable replacement plugin
+const envReplacementPlugin = () => {
+  return {
+    name: 'env-replacement-plugin',
+    transformIndexHtml(html: string) {
+      return html.replace(
+        /%VITE_GOOGLE_MAPS_API_KEY%/g, 
+        process.env.VITE_GOOGLE_MAPS_API_KEY || ''
+      );
+    }
+  };
+};
+
 // https://vitejs.dev/config/
 export default defineConfig({
   server: {
     host: "::",
     port: 8080,
   },
-  plugins: [react()],
+  plugins: [
+    react(),
+    loggingPlugin(),
+    envReplacementPlugin()
+  ],
   base: '/smartestate-link/',
   resolve: {
     alias: {
@@ -73,6 +90,10 @@ export default defineConfig({
     include: ['react', 'react-dom']
   },
   define: {
-    'process.env': {}
+    // Make env variables available to the client
+    'process.env.VITE_SUPABASE_URL': JSON.stringify(process.env.VITE_SUPABASE_URL),
+    'process.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(process.env.VITE_SUPABASE_ANON_KEY),
+    'process.env.VITE_GOOGLE_MAPS_API_KEY': JSON.stringify(process.env.VITE_GOOGLE_MAPS_API_KEY),
+    'process.env.VITE_API_URL': JSON.stringify(process.env.VITE_API_URL),
   },
 });

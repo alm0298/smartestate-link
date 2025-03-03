@@ -40,6 +40,21 @@ function useCarousel() {
   return context
 }
 
+// Fix for IntersectionObserver error
+const safelyUseEmblaCarousel = (...args: Parameters<typeof useEmblaCarousel>) => {
+  // Original implementation with error handling
+  try {
+    return useEmblaCarousel(...args)
+  } catch (error) {
+    console.error("Error initializing Embla Carousel:", error)
+    // Return a dummy implementation that won't crash
+    return [
+      React.useRef(null),
+      null
+    ] as ReturnType<typeof useEmblaCarousel>
+  }
+}
+
 const Carousel = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & CarouselProps
@@ -56,7 +71,7 @@ const Carousel = React.forwardRef<
     },
     ref
   ) => {
-    const [carouselRef, api] = useEmblaCarousel(
+    const [carouselRef, api] = safelyUseEmblaCarousel(
       {
         ...opts,
         axis: orientation === "horizontal" ? "x" : "y",

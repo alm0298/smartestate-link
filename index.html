@@ -15,8 +15,17 @@
         // The Maps API will call this function when it's fully loaded
         window.googleMapsLoaded = true;
       }
+      
+      // Dynamically load Google Maps with the API key from environment variables
+      window.addEventListener('DOMContentLoaded', () => {
+        const apiKey = '%VITE_GOOGLE_MAPS_API_KEY%';
+        const script = document.createElement('script');
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=initMap&loading=async`;
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
+      });
     </script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBMD21JpmlHER62PCuJMztk8qJrYbNfAKc&libraries=places&callback=initMap&loading=async" defer></script>
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">

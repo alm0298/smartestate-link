@@ -149,12 +149,23 @@ export const PropertyMap = ({
     const geocoder = new google.maps.Geocoder();
     try {
       const result = await geocoder.geocode({ address });
-      if (result.results[0]) {
-        const { lat, lng } = result.results[0].geometry.location;
-        const newPos = { lat: lat(), lng: lng() };
+      
+      // Check if result exists and has results array
+      if (result && result.results && result.results.length > 0 && result.results[0]) {
+        const location = result.results[0].geometry.location;
+        const newPos = { 
+          lat: typeof location.lat === 'function' ? location.lat() : location.lat, 
+          lng: typeof location.lng === 'function' ? location.lng() : location.lng 
+        };
         setCenter(newPos);
         setMarkerPosition(newPos);
         setSearchAddress(result.results[0].formatted_address);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Address Not Found",
+          description: "Could not find the specified address. Please try a different address.",
+        });
       }
     } catch (error) {
       console.error('Geocoding error:', error);
