@@ -78,7 +78,7 @@ export const Properties = () => {
       }
 
       try {
-        debug('[Properties] Making Supabase query for user_id:', user.id);
+        debug('[Properties] Making Supabase query');
         const { data, error } = await supabase
           .from("property_analyses")
           .select(`
@@ -95,17 +95,16 @@ export const Properties = () => {
             summary,
             score
           `)
-          .eq('user_id', user.id)
           .order('created_at', { ascending: false });
         
         if (error) {
           loggerError('[Properties] Supabase error:', error);
+          loggerError('[Properties] Error fetching properties:', error.message);
           throw error;
         }
         
-        info('[Properties] Properties fetched successfully:', {
-          count: data?.length || 0,
-          firstProperty: data?.[0]?.id
+        debug('[Properties] Successfully fetched properties:', {
+          count: data?.length || 0
         });
         return data as unknown as Property[];
       } catch (error: any) {
