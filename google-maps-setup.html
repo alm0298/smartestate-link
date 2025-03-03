@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Maps API Setup for SmartEstate</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.5;
+            color: #333;
+        }
+        h1 {
+            color: #3182ce;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+        pre {
+            background-color: #f7fafc;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            border-left: 3px solid #3182ce;
+            margin: 20px 0;
+        }
+        code {
+            font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+        }
+        .step {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8fafc;
+            border-radius: 5px;
+            border: 1px solid #e2e8f0;
+        }
+        .step h3 {
+            margin-top: 0;
+            color: #2c5282;
+        }
+        .important {
+            color: #e53e3e;
+            font-weight: bold;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        button {
+            background-color: #3182ce;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        button:hover {
+            background-color: #2c5282;
+        }
+    </style>
+</head>
+<body>
+    <h1>Setting Up Google Maps API for SmartEstate</h1>
+    
+    <div class="step">
+        <h3>Step 1: Create a Google Cloud Project</h3>
+        <ol>
+            <li>Go to the <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a></li>
+            <li>Sign in with your Google account</li>
+            <li>Click on the project dropdown at the top of the page</li>
+            <li>Click "New Project"</li>
+            <li>Enter a name for your project (e.g., "SmartEstate Maps")</li>
+            <li>Click "Create"</li>
+        </ol>
+    </div>
+    
+    <div class="step">
+        <h3>Step 2: Enable the Required APIs</h3>
+        <ol>
+            <li>In your new project, navigate to "APIs & Services" > "Library"</li>
+            <li>Search for and enable the following APIs:
+                <ul>
+                    <li>Maps JavaScript API</li>
+                    <li>Geocoding API</li>
+                    <li>Places API (if you want autocomplete functionality)</li>
+                </ul>
+            </li>
+            <li>For each API, click on it and then click the "Enable" button</li>
+        </ol>
+    </div>
+    
+    <div class="step">
+        <h3>Step 3: Create an API Key</h3>
+        <ol>
+            <li>In the Google Cloud Console, navigate to "APIs & Services" > "Credentials"</li>
+            <li>Click "Create Credentials" > "API key"</li>
+            <li>Copy your new API key (you'll use this in your SmartEstate app)</li>
+        </ol>
+    </div>
+    
+    <div class="step">
+        <h3>Step 4: Set Restrictions (Highly Recommended)</h3>
+        <p>To secure your API key:</p>
+        <ol>
+            <li>After creating the key, click "Restrict Key"</li>
+            <li>Under "Application restrictions", select "HTTP referrers" or "IP addresses" depending on your needs</li>
+            <li>If using HTTP referrers, add the domains where your app will run (e.g., <code>alm0298.github.io</code> and <code>localhost</code> for development)</li>
+            <li>Under "API restrictions", select "Restrict key" and choose the APIs you enabled earlier</li>
+            <li>Click "Save"</li>
+        </ol>
+    </div>
+    
+    <div class="step">
+        <h3>Step 5: Add the API Key to Your SmartEstate App</h3>
+        <p>Update your <code>.env</code> file with your new API key:</p>
+        <pre><code id="envConfig"># Other environment variables...
+
+# Google Maps API Key
+VITE_GOOGLE_MAPS_API_KEY=your_new_api_key_here
+
+# Other environment variables...</code></pre>
+        <button onclick="copyEnvConfig()">Copy to Clipboard</button>
+    </div>
+    
+    <div class="step">
+        <h3>Step 6: Rebuild and Deploy Your App</h3>
+        <ol>
+            <li>After updating your <code>.env</code> file, rebuild your application:
+                <pre><code>npm run build</code></pre>
+            </li>
+            <li>Deploy your updated application to GitHub Pages or your hosting provider</li>
+        </ol>
+    </div>
+    
+    <div class="step">
+        <h3>Troubleshooting</h3>
+        <p>If you encounter issues:</p>
+        <ul>
+            <li>Make sure all required APIs are enabled in the Google Cloud Console</li>
+            <li>Check that your API key restrictions allow access from your app's domain</li>
+            <li>Verify the API key is correctly set in your <code>.env</code> file</li>
+            <li>Check your browser's console for specific error messages</li>
+            <li>Remember that it may take a few minutes for changes in the Google Cloud Console to propagate</li>
+        </ul>
+    </div>
+    
+    <div class="step">
+        <h3>Billing Information</h3>
+        <p><span class="important">Important:</span> While Google Maps provides a free tier ($200 monthly credit), you need to set up billing to use the APIs:</p>
+        <ol>
+            <li>In the Google Cloud Console, navigate to "Billing"</li>
+            <li>Link a billing account to your project</li>
+            <li>You can set budget alerts to avoid unexpected charges</li>
+        </ol>
+        <p>For most personal projects, the free tier is sufficient (covers approximately 28,000 map loads per month).</p>
+    </div>
+
+    <script>
+        function copyEnvConfig() {
+            const text = document.getElementById('envConfig').textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Configuration copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+            });
+        }
+    </script>
+</body>
+</html> 

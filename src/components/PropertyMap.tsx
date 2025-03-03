@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { MapPin, Save } from "lucide-react";
+import { MapPin, Save, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface PropertyMapProps {
   propertyId: string;
@@ -16,6 +17,16 @@ interface PropertyMapProps {
 }
 
 const libraries: ("places")[] = ["places"];
+
+// Get API key with fallback message
+const getGoogleMapsApiKey = () => {
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  // Check if API key is the placeholder value
+  if (!apiKey || apiKey === "your_google_maps_api_key") {
+    return "";  // Return empty for better error handling
+  }
+  return apiKey;
+};
 
 // Custom marker component that uses AdvancedMarkerElement
 const AdvancedMarker = ({ position, map }: { position: google.maps.LatLngLiteral; map?: google.maps.Map | null }) => {
@@ -55,12 +66,22 @@ export const PropertyMap = ({
     lng: initialLng || -8.6291
   });
 
+  const apiKey = getGoogleMapsApiKey();
   const { isLoaded, loadError } = useLoadScript({
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+    googleMapsApiKey: apiKey,
     libraries
   });
 
   const geocodeAddress = useCallback(async (address: string) => {
+    if (!apiKey) {
+      toast({
+        variant: "destructive",
+        title: "Google Maps API Key Missing",
+        description: "Please configure a valid Google Maps API key in your .env file",
+      });
+      return;
+    }
+
     const geocoder = new google.maps.Geocoder();
     try {
       const result = await geocoder.geocode({ address });
@@ -79,7 +100,7 @@ export const PropertyMap = ({
         description: "Failed to find address. Please try again.",
       });
     }
-  }, [toast]);
+  }, [toast, apiKey]);
 
   const handleMapClick = (e: google.maps.MapMouseEvent) => {
     if (!isEditing || !e.latLng) return;
@@ -89,7 +110,7 @@ export const PropertyMap = ({
 
   const handleSaveLocation = async () => {
     try {
-      const pid = propertyId as any;  // Type assertion at assignment
+      const pid = propertyId as any;
       const { error } = await supabase
         .from('property_analyses')
         .update({
@@ -123,6 +144,34 @@ export const PropertyMap = ({
     }
   }, [isLoaded, address, initialLat, initialLng, geocodeAddress]);
 
+  // Show no API key warning
+  if (!apiKey) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MapPin className="h-5 w-5" />
+            Location
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Google Maps API Key Missing</AlertTitle>
+            <AlertDescription>
+              Please add a valid Google Maps API key to your <code>.env</code> file. 
+              Set the <code>VITE_GOOGLE_MAPS_API_KEY</code> variable with your API key.
+            </AlertDescription>
+          </Alert>
+          <div className="mt-4">
+            <p className="text-sm font-medium">Property Address:</p>
+            <p className="text-sm">{address}</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -155,6 +204,16 @@ export const PropertyMap = ({
                 Edit
               </Button>
             </div>
+          )}
+          
+          {loadError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error loading Google Maps</AlertTitle>
+              <AlertDescription>
+                {loadError.message}
+              </AlertDescription>
+            </Alert>
           )}
           
           {isLoaded ? (
