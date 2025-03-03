@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import { GoogleMap, useLoadScript } from "@react-google-maps/api";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { GoogleMap } from "@react-google-maps/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,13 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { MapPin, Save, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
+// Extend Window interface to include our custom property
+declare global {
+  interface Window {
+    googleMapsLoaded?: boolean;
+  }
+}
 
 interface PropertyMapProps {
   propertyId: string;
@@ -16,8 +23,6 @@ interface PropertyMapProps {
   onLocationUpdated?: () => void;
 }
 
-const libraries: ("places")[] = ["places"];
-
 // Custom marker component that uses AdvancedMarkerElement
 const AdvancedMarker = ({ position, map, draggable, onDragEnd }: { 
   position: google.maps.LatLngLiteral; 
@@ -25,15 +30,22 @@ const AdvancedMarker = ({ position, map, draggable, onDragEnd }: {
   draggable?: boolean;
   onDragEnd?: (position: google.maps.LatLngLiteral) => void;
 }) => {
+  const markerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
+
   useEffect(() => {
     if (!map || typeof google === 'undefined' || !google.maps?.marker) return;
 
     try {
+      if (markerRef.current) {
+        markerRef.current.map = null;
+      }
+
       const marker = new google.maps.marker.AdvancedMarkerElement({
         position,
         map,
         gmpDraggable: !!draggable
       });
+      markerRef.current = marker;
 
       if (draggable && onDragEnd) {
         marker.addListener("dragend", () => {
@@ -48,7 +60,10 @@ const AdvancedMarker = ({ position, map, draggable, onDragEnd }: {
       }
 
       return () => {
-        marker.map = null;
+        if (markerRef.current) {
+          markerRef.current.map = null;
+          markerRef.current = null;
+        }
       };
     } catch (error) {
       console.error("Error creating advanced marker:", error);
@@ -78,15 +93,51 @@ export const PropertyMap = ({
     lat: initialLat || 41.1579,
     lng: initialLng || -8.6291
   });
+  const [isGoogleMapsLoaded, setIsGoogleMapsLoaded] = useState(
+    typeof window !== 'undefined' && 
+    typeof google !== 'undefined' && 
+    typeof google.maps !== 'undefined'
+  );
+  const [mapLoadError, setMapLoadError] = useState<string | null>(null);
 
-  // Use script loader without API key since it's in index.html
-  const { isLoaded, loadError } = useLoadScript({
-    googleMapsApiKey: "",
-    libraries
-  });
+  // Check if Google Maps is loaded
+  useEffect(() => {
+    if (isGoogleMapsLoaded) return;
+    
+    const checkGoogleMapsLoaded = () => {
+      if (typeof google !== 'undefined' && typeof google.maps !== 'undefined') {
+        setIsGoogleMapsLoaded(true);
+      } else {
+        setMapLoadError("Google Maps failed to load. Please refresh the page.");
+      }
+    };
+    
+    // Check immediately and after a timeout
+    checkGoogleMapsLoaded();
+    
+    // Wait for the initMap callback which sets googleMapsLoaded to true
+    const waitForMapsLoaded = setInterval(() => {
+      if (window.googleMapsLoaded === true) {
+        checkGoogleMapsLoaded();
+        clearInterval(waitForMapsLoaded);
+      }
+    }, 500);
+    
+    // Set a timeout to prevent waiting indefinitely
+    setTimeout(() => {
+      clearInterval(waitForMapsLoaded);
+      if (!isGoogleMapsLoaded) {
+        setMapLoadError("Google Maps took too long to load. Please check your internet connection and refresh the page.");
+      }
+    }, 10000);
+    
+    return () => {
+      clearInterval(waitForMapsLoaded);
+    };
+  }, [isGoogleMapsLoaded]);
 
   const geocodeAddress = useCallback(async (address: string) => {
-    if (typeof google === 'undefined') {
+    if (typeof google === 'undefined' || !google.maps) {
       toast({
         variant: "destructive",
         title: "Google Maps Not Loaded",
@@ -152,12 +203,12 @@ export const PropertyMap = ({
   };
 
   useEffect(() => {
-    if (isLoaded && address && !initialLat && !initialLng) {
+    if (isGoogleMapsLoaded && address && !initialLat && !initialLng) {
       geocodeAddress(address);
     }
-  }, [isLoaded, address, initialLat, initialLng, geocodeAddress]);
+  }, [isGoogleMapsLoaded, address, initialLat, initialLng, geocodeAddress]);
 
-  if (loadError) {
+  if (mapLoadError) {
     return (
       <Card>
         <CardHeader>
@@ -171,9 +222,31 @@ export const PropertyMap = ({
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Google Maps Error</AlertTitle>
             <AlertDescription>
-              {loadError.message}
+              {mapLoadError}
             </AlertDescription>
           </Alert>
+          <div className="mt-4">
+            <p className="text-sm font-medium">Property Address:</p>
+            <p className="text-sm">{address}</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!isGoogleMapsLoaded) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MapPin className="h-5 w-5" />
+            Location
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[400px] w-full flex items-center justify-center">
+            <p>Loading Google Maps...</p>
+          </div>
           <div className="mt-4">
             <p className="text-sm font-medium">Property Address:</p>
             <p className="text-sm">{address}</p>
@@ -217,37 +290,31 @@ export const PropertyMap = ({
             </div>
           )}
           
-          {isLoaded ? (
-            <div className="h-[400px] w-full">
-              <GoogleMap
-                mapContainerStyle={{ height: "100%", width: "100%" }}
-                zoom={13}
-                center={center}
-                onClick={handleMapClick}
-                options={{
-                  disableDefaultUI: true,
-                  zoomControl: true,
-                  streetViewControl: true,
-                  mapTypeControl: true,
+          <div className="h-[400px] w-full">
+            <GoogleMap
+              mapContainerStyle={{ height: "100%", width: "100%" }}
+              zoom={13}
+              center={center}
+              onClick={handleMapClick}
+              options={{
+                disableDefaultUI: true,
+                zoomControl: true,
+                streetViewControl: true,
+                mapTypeControl: true,
+              }}
+              onLoad={setMap}
+              onUnmount={() => setMap(null)}
+            >
+              <AdvancedMarker 
+                position={markerPosition}
+                map={map}
+                draggable={isEditing}
+                onDragEnd={(position) => {
+                  setMarkerPosition(position);
                 }}
-                onLoad={setMap}
-                onUnmount={() => setMap(null)}
-              >
-                <AdvancedMarker 
-                  position={markerPosition}
-                  map={map}
-                  draggable={isEditing}
-                  onDragEnd={(position) => {
-                    setMarkerPosition(position);
-                  }}
-                />
-              </GoogleMap>
-            </div>
-          ) : (
-            <div className="h-[400px] w-full flex items-center justify-center">
-              {loadError ? "Error loading map" : "Loading map..."}
-            </div>
-          )}
+              />
+            </GoogleMap>
+          </div>
         </div>
       </CardContent>
     </Card>

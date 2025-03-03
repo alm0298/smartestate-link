@@ -2,27 +2,35 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/house-icon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/smartestate-link/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SmartEstate - AI-Powered Property Analysis</title>
     <meta name="description" content="AI-powered property analysis to help you make smarter real estate investment decisions.">
     
-    <!-- Add Google Maps Script directly -->
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBMD21JpmlHER62PCuJMztk8qJrYbNfAKc&libraries=places,geocoding" async defer></script>
+    <!-- Google Maps Script - Properly loaded with recommended pattern -->
+    <script>
+      // Initialize Google Maps callback function
+      function initMap() {
+        console.log("Google Maps API initialized successfully");
+        // The Maps API will call this function when it's fully loaded
+        window.googleMapsLoaded = true;
+      }
+    </script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBMD21JpmlHER62PCuJMztk8qJrYbNfAKc&libraries=places&callback=initMap&loading=async" defer></script>
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://smartestate.ai/">
+    <meta property="og:url" content="https://alm0298.github.io/smartestate-link/">
     <meta property="og:title" content="SmartEstate - AI-Powered Property Analysis">
     <meta property="og:description" content="AI-powered property analysis to help you make smarter real estate investment decisions.">
-    <meta property="og:image" content="/og-image.jpg">
+    <meta property="og:image" content="/smartestate-link/og-image.png">
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="https://smartestate.ai/">
+    <meta property="twitter:url" content="https://alm0298.github.io/smartestate-link/">
     <meta property="twitter:title" content="SmartEstate - AI-Powered Property Analysis">
     <meta property="twitter:description" content="AI-powered property analysis to help you make smarter real estate investment decisions.">
-    <meta property="twitter:image" content="/og-image.jpg">
+    <meta property="twitter:image" content="/smartestate-link/og-image.png">
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -37,7 +45,25 @@
       gtag('js', new Date());
       gtag('config', 'G-XXXXXXXXXX');
     </script>
-    <script type="module" crossorigin src="/smartestate-link/assets/index-CYAKevEV.js"></script>
+    
+    <!-- Start Single Page Apps for GitHub Pages -->
+    <script type="text/javascript">
+      // Single Page Apps for GitHub Pages
+      // MIT License
+      // https://github.com/rafgraph/spa-github-pages
+      (function(l) {
+        if (l.search[1] === '/' ) {
+          var decoded = l.search.slice(1).split('&').map(function(s) { 
+            return s.replace(/~and~/g, '&')
+          }).join('?');
+          window.history.replaceState(null, null,
+              l.pathname.slice(0, -1) + decoded + l.hash
+          );
+        }
+      }(window.location))
+    </script>
+    <!-- End Single Page Apps for GitHub Pages -->
+    <script type="module" crossorigin src="/smartestate-link/assets/index-C5VBxDOQ.js"></script>
     <link rel="modulepreload" crossorigin href="/smartestate-link/assets/vendor-ChhLT4kb.js">
     <link rel="stylesheet" crossorigin href="/smartestate-link/assets/index-LRmqZ9EG.css">
   </head>
